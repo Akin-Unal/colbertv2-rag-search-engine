@@ -1,0 +1,21 @@
+# Core
+numpy
+pandas
+tqdm
+python-dotenv
+
+# Dataset loading
+ir-datasets
+
+# Retrieval baselines
+rank-bm25
+sentence-transformers
+faiss-cpu
+
+# API + UI
+fastapi
+uvicorn[standard]
+streamlit
+
+# Testing
+pytest
