@@ -1,71 +1,29 @@
 # ColBERTv2-Based Semantic Search and RAG System
 
-A research-paper-based information retrieval project that compares **BM25**, **dense retrieval**, and **ColBERTv2 late interaction retrieval** on a scientific document collection.
+A research-paper-based information retrieval project that compares **BM25**, **single-vector dense retrieval**, and **ColBERTv2 late interaction retrieval** on a scientific document collection.
 
-The main purpose of this project is not simply to call an existing language model or build another chatbot interface. My goal is to understand how modern retrieval systems work internally, implement multiple retrieval approaches, evaluate them using standard information retrieval metrics, and expose the resulting system through an API and an interactive demo.
+The main purpose of this project is not to build another application that only sends a prompt to a language model. My goal is to understand how modern retrieval systems work, implement their core pipelines, compare different retrieval architectures, and evaluate them using reproducible information retrieval metrics.
 
-The project is built around the ideas presented in the following research papers:
+The system is being developed in progressive stages:
 
-* **ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT**
-* **ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction**
-* **BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models**
-* **Fact or Fiction: Verifying Scientific Claims**
+1. Scientific document ingestion and passage preparation
+2. BM25 lexical retrieval
+3. Dense semantic retrieval with Sentence Transformers and FAISS
+4. ColBERTv2 token-level late interaction retrieval
+5. Quantitative retrieval evaluation
+6. FastAPI search backend
+7. Streamlit demo interface
+8. Optional source-grounded RAG answer generation
 
 ---
 
 ## Project Motivation
 
-Retrieval is one of the most important components of modern question-answering and Retrieval-Augmented Generation systems.
+Retrieval is a central component of modern search engines, question-answering systems, and Retrieval-Augmented Generation applications.
 
-A language model may be capable of producing fluent answers, but it does not automatically know which external documents are relevant to a user query. Before an LLM can generate a grounded answer, the system must first retrieve useful evidence from a document collection.
+A language model may generate fluent text, but it does not automatically know which external documents are relevant to a query. A RAG pipeline must first search a document collection and retrieve useful evidence before asking a generator to produce an answer.
 
-This project focuses primarily on that retrieval stage.
-
-Instead of starting with a large generative model, I first build and compare three different search approaches:
-
-1. **BM25**, representing traditional lexical keyword retrieval.
-2. **Dense retrieval**, representing single-vector semantic retrieval.
-3. **ColBERTv2**, representing token-level multi-vector retrieval with late interaction.
-
-By comparing these methods on the same dataset, queries, and relevance judgments, I can observe how retrieval architecture affects search quality.
-
-The central technical question of the project is:
-
-> How do lexical retrieval, single-vector dense retrieval, and token-level late interaction retrieval differ in their ability to find relevant scientific passages?
-
----
-
-## Project Goals
-
-The system is designed to:
-
-* Accept a natural-language scientific query or claim.
-* Search a collection of scientific documents.
-* Retrieve the most relevant passages.
-* Display ranked results with retrieval scores.
-* Compare BM25, dense retrieval, and ColBERTv2.
-* Evaluate each method using standard information retrieval metrics.
-* Expose retrieval functionality through a FastAPI backend.
-* Provide an interactive Streamlit interface.
-* Optionally generate source-grounded answers with a local or external LLM.
-
-The final system is intended to demonstrate that I can:
-
-* Read and understand a research paper.
-* Translate a research idea into a working software project.
-* Build data ingestion and preprocessing pipelines.
-* Implement classical and neural retrieval baselines.
-* Work with vector embeddings and similarity search.
-* Evaluate retrieval systems quantitatively.
-* Design a modular backend API.
-* Build a usable search interface.
-* Structure an ML/NLP project as a maintainable repository.
-
----
-
-## Why Retrieval Comes Before RAG
-
-A typical RAG system contains two main components:
+A simplified RAG pipeline looks like this:
 
 ```text
 User Query
@@ -83,45 +41,99 @@ Generator / LLM
 Grounded Answer
 ```
 
-The **retriever** searches an external knowledge collection and selects passages that may answer the query.
+The quality of the final answer depends heavily on the retrieval stage.
 
-The **generator** receives those passages as context and produces a natural-language response.
+If the retriever fails to find the relevant evidence, even a powerful language model may produce an incomplete, unsupported, or incorrect answer. For this reason, this project follows a **retrieval-first** development strategy.
 
-A RAG system can only generate a reliable answer when the retriever provides useful evidence. If retrieval fails, even a powerful language model may generate an incomplete, unsupported, or incorrect response.
-
-For that reason, this project is intentionally retrieval-first.
-
-The optional answer-generation component will only be added after the retrieval methods have been implemented and evaluated.
+The optional language-model component will be added only after the retrieval methods have been implemented and evaluated.
 
 ---
 
-## Retrieval Methods
+## Main Research Question
 
-### 1. BM25
+This project investigates the following question:
 
-BM25 is a sparse lexical retrieval algorithm based primarily on keyword overlap.
+> How do lexical retrieval, single-vector dense retrieval, and token-level late interaction retrieval differ when searching scientific documents?
 
-It assigns higher scores to documents that contain important query terms while considering:
+The three retrieval approaches represent different ways of matching a query with a document:
 
-* Term frequency within the document.
-* Rarity of the term across the collection.
-* Document-length normalization.
+* **BM25** relies mainly on lexical and keyword overlap.
+* **Dense retrieval** maps an entire query and an entire passage into one vector each.
+* **ColBERTv2** preserves token-level representations and applies late interaction during scoring.
 
-BM25 does not generate neural embeddings and does not directly understand semantic similarity.
+The project compares these methods using the same corpus, queries, relevance judgments, and evaluation metrics.
 
-For example:
+---
+
+## Project Objectives
+
+The completed system is intended to:
+
+* Accept a natural-language scientific query or claim.
+* Search a collection of scientific documents.
+* Retrieve the most relevant passages.
+* Display ranked results with retrieval scores.
+* Compare lexical and neural retrieval approaches.
+* Evaluate retrieval quality using standard metrics.
+* Expose the search system through a FastAPI backend.
+* Provide an interactive Streamlit interface.
+* Optionally generate answers grounded in retrieved passages.
+* Display the sources used for answer generation.
+
+From an engineering perspective, the project demonstrates:
+
+* Research paper comprehension
+* Data ingestion and normalization
+* Passage chunking
+* Sparse retrieval
+* Neural embedding generation
+* Vector indexing
+* Similarity search
+* Retrieval evaluation
+* Experiment reporting
+* API development
+* Demo application development
+* Modular project architecture
+
+---
+
+# Retrieval Methods
+
+## 1. BM25 Lexical Retrieval
+
+BM25 is a traditional sparse retrieval algorithm based primarily on term matching.
+
+It considers:
+
+* How often a query term occurs in a document
+* How rare or informative the term is across the corpus
+* The length of the document relative to the average document length
+
+A simplified example:
 
 ```text
 Query:
-heart attack treatment
+vitamin D deficiency
 
 Document:
-treatment options for heart attack patients
+Vitamin D deficiency may affect immune regulation.
 ```
 
-BM25 can perform well because the query and document share important words.
+The document receives a strong score because it contains important query terms.
 
-However:
+BM25 is often effective for:
+
+* Exact terminology
+* Scientific identifiers
+* Rare domain-specific words
+* Product codes
+* Gene names
+* Abbreviations
+* Proper nouns
+
+However, BM25 does not directly understand semantic equivalence.
+
+For example:
 
 ```text
 Query:
@@ -131,47 +143,55 @@ Document:
 therapy for myocardial infarction
 ```
 
-The two texts are semantically related, but they have limited exact word overlap. A lexical retriever may therefore rank the second document lower than expected.
+These expressions are semantically related, but their lexical overlap is limited.
 
-BM25 is included because it is:
+BM25 is included because it provides a strong, efficient, and interpretable baseline against which neural retrieval methods can be compared.
 
-* Fast.
-* Interpretable.
-* Easy to reproduce.
-* Strong on rare technical terminology.
-* A standard baseline for information retrieval experiments.
+The implementation uses:
 
-In this project, BM25 is implemented using `rank-bm25`.
+```text
+rank-bm25
+BM25Okapi
+```
 
 ---
 
-### 2. Dense Retrieval
+## 2. Dense Semantic Retrieval
 
-Dense retrieval represents the entire query and each passage as fixed-size numerical vectors called embeddings.
+Dense retrieval represents a query and a passage as fixed-size numerical vectors called embeddings.
 
 ```text
-Query text
-    │
-    ▼
-Embedding model
-    │
-    ▼
-Single query vector
-
-Passage text
-    │
-    ▼
-Embedding model
-    │
-    ▼
-Single passage vector
+Query
+  │
+  ▼
+Embedding Model
+  │
+  ▼
+Single Query Vector
 ```
 
-The query vector is compared with passage vectors using a similarity measure such as cosine similarity or inner product.
+```text
+Passage
+  │
+  ▼
+Embedding Model
+  │
+  ▼
+Single Passage Vector
+```
 
-Documents whose vectors are close to the query vector are considered semantically relevant.
+The vectors are compared using a similarity function.
 
-This allows dense retrieval to match texts even when they do not contain the same exact words.
+In this project:
+
+* The embedding model is `sentence-transformers/all-mpnet-base-v2`
+* Each query is represented by one 768-dimensional vector
+* Each passage is represented by one 768-dimensional vector
+* Embeddings are normalized
+* FAISS `IndexFlatIP` performs exact nearest-neighbor search
+* Inner product over normalized vectors is interpreted as cosine similarity
+
+Dense retrieval can match semantically related expressions even when exact words differ.
 
 For example:
 
@@ -185,177 +205,180 @@ and:
 myocardial infarction
 ```
 
-may receive similar vector representations because the embedding model has learned that these expressions are semantically related.
+may receive similar vector representations.
 
-In this project:
+### Single-vector limitation
 
-* `sentence-transformers` generates embeddings.
-* FAISS stores and searches passage vectors.
-* The same SciFact queries are used for comparison with BM25.
+A complete passage is compressed into one vector:
 
-A limitation of standard dense retrieval is that an entire passage is compressed into a single vector. Some fine-grained token-level information may be lost during this compression.
+```text
+Passage containing many concepts
+              │
+              ▼
+       One 768D vector
+```
+
+This is efficient, but some fine-grained token-level information may be lost during compression.
+
+This limitation provides the motivation for the later ColBERTv2 phase.
 
 ---
 
-### 3. ColBERTv2 and Late Interaction
+## 3. ColBERTv2 and Late Interaction
 
-ColBERTv2 uses a different architecture from standard dense retrieval.
+ColBERTv2 uses a different representation strategy from standard dense retrieval.
 
-Instead of representing a query or document with one vector, it generates contextualized embeddings for individual tokens.
+Instead of creating one vector for an entire query and one vector for an entire passage, it creates contextualized vectors for individual tokens.
 
-A simplified query representation may look like:
+Simplified query representation:
 
 ```text
 Query:
-"vitamin D deficiency"
+vitamin D deficiency
 
-Token embeddings:
-vitamin     → vector q1
-D           → vector q2
-deficiency  → vector q3
+Token representations:
+vitamin     → q1
+D           → q2
+deficiency  → q3
 ```
 
-A document is represented in the same way:
+Simplified passage representation:
 
 ```text
-Document tokens:
-low         → vector d1
-vitamin     → vector d2
-levels      → vector d3
-increase    → vector d4
-disease     → vector d5
-risk        → vector d6
+low         → d1
+vitamin     → d2
+levels      → d3
+immune      → d4
+risk        → d5
 ```
 
-During scoring, every query-token vector searches for its strongest matching document-token vector.
+During scoring, each query-token vector searches for its strongest matching passage-token vector.
 
-A simplified ColBERT score is:
+A simplified ColBERT scoring function is:
 
 ```text
-Score(query, document)
-    = sum over query tokens(
-        maximum similarity with any document token
-      )
+Score(query, passage)
+    =
+sum over query tokens(
+    maximum similarity with any passage token
+)
 ```
 
-This operation is commonly described as **MaxSim**.
+This is commonly described as a **MaxSim** operation.
 
-Conceptually:
+The process is called **late interaction** because:
 
-```text
-vitamin     → best matching document token
-D           → best matching document token
-deficiency  → best matching document token
+1. Queries and passages are encoded independently.
+2. Their token representations are stored separately.
+3. Fine-grained query-document interaction happens later during scoring.
 
-Final score = sum of the best token-level similarities
-```
+ColBERTv2 aims to combine:
 
-This is called **late interaction** because:
+* Transformer-based semantic understanding
+* Token-level matching
+* Independent query and document encoding
+* Efficient retrieval through compressed multi-vector representations
 
-* Queries and documents are encoded independently.
-* Their token representations are stored separately.
-* Fine-grained interaction happens later, during retrieval scoring.
-
-This architecture attempts to combine two useful properties:
-
-* The semantic understanding of transformer-based representations.
-* The fine-grained matching behavior of token-level retrieval.
-
-ColBERTv2 extends the original ColBERT architecture with techniques such as residual compression and denoised supervision, aiming to retain retrieval quality while reducing the storage cost of multi-vector representations.
+The ColBERTv2 implementation is planned after the BM25 and dense baselines have been fully evaluated.
 
 ---
 
-## BM25 vs Dense Retrieval vs ColBERTv2
+# Method Comparison
 
-| Property                  | BM25                   | Dense Retrieval             | ColBERTv2                                 |
-| ------------------------- | ---------------------- | --------------------------- | ----------------------------------------- |
-| Representation            | Sparse term statistics | One vector per passage      | Multiple token vectors per passage        |
-| Main matching signal      | Keyword overlap        | Global semantic similarity  | Fine-grained semantic token matching      |
-| Understands synonyms      | Limited                | Usually strong              | Usually strong                            |
-| Exact technical terms     | Strong                 | Model-dependent             | Strong token-level potential              |
-| Storage requirement       | Low                    | Moderate                    | Higher than single-vector dense retrieval |
-| GPU requirement           | No                     | Optional for small datasets | Usually recommended for indexing          |
-| Interpretability          | Relatively high        | Lower                       | Medium                                    |
-| Implementation complexity | Low                    | Medium                      | High                                      |
-| Role in this project      | Lexical baseline       | Semantic baseline           | Main paper-based method                   |
+| Property                  | BM25                   | Dense Retrieval            | ColBERTv2                           |
+| ------------------------- | ---------------------- | -------------------------- | ----------------------------------- |
+| Representation            | Sparse term statistics | One vector per passage     | Multiple token vectors per passage  |
+| Primary signal            | Keyword overlap        | Global semantic similarity | Fine-grained semantic matching      |
+| Synonym handling          | Limited                | Generally strong           | Generally strong                    |
+| Exact technical terms     | Strong                 | Model-dependent            | Token-level potential               |
+| Storage requirement       | Low                    | Moderate                   | Higher than single-vector retrieval |
+| Query processing          | Very fast              | Requires embedding model   | Requires token encoding and MaxSim  |
+| GPU requirement           | No                     | Optional                   | Usually recommended                 |
+| Interpretability          | Relatively high        | Lower                      | Medium                              |
+| Implementation complexity | Low                    | Medium                     | High                                |
+| Project role              | Lexical baseline       | Semantic baseline          | Main paper-based method             |
 
-The goal is not to assume that one method is always better.
+The project does not assume that a neural method is always superior.
 
 For example:
 
-* BM25 may outperform neural retrieval on rare scientific identifiers.
-* Dense retrieval may perform better when queries and documents use different terminology.
-* ColBERTv2 may preserve more fine-grained matching information than single-vector dense retrieval.
-* Neural methods may also retrieve semantically related but non-relevant passages.
+* BM25 may perform better on rare identifiers.
+* Dense retrieval may perform better on paraphrases.
+* Dense retrieval may retrieve semantically related but irrelevant documents.
+* ColBERTv2 may preserve details that are lost in a single passage vector.
+* ColBERTv2 introduces additional storage and indexing complexity.
 
-The project measures these differences instead of relying only on qualitative examples.
+These trade-offs will be measured rather than assumed.
 
 ---
 
-## Dataset
+# Dataset
 
-### BEIR SciFact
+## BEIR SciFact
 
-The MVP uses the **SciFact** dataset through the BEIR information retrieval benchmark.
+The MVP uses the **SciFact** dataset through the BEIR retrieval benchmark.
 
-SciFact is designed around scientific claims and evidence-containing research abstracts. Given a scientific claim, a retrieval system must identify documents containing relevant evidence.
+SciFact contains scientific claims and research abstracts that may provide evidence related to those claims.
 
-This makes the dataset appropriate for the project because:
+This dataset was selected because:
 
 * It represents a real scientific retrieval task.
-* It contains technical and domain-specific language.
-* It provides relevance judgments for evaluation.
-* It is small enough for local experimentation.
-* It can be used to compare several retrieval architectures consistently.
+* It contains domain-specific terminology.
+* It includes queries and relevance judgments.
+* It supports quantitative evaluation.
+* It is small enough for local development.
+* It is suitable for comparing multiple retrieval methods.
 
-The dataset is loaded through:
+The dataset is loaded with:
 
 ```python
 ir_datasets.load("beir/scifact/test")
 ```
 
-### Local Dataset Statistics
+---
 
-The current preprocessing pipeline produced:
+## Local Dataset Statistics
 
-| Item                               | Count |
+The current ingestion pipeline produced:
+
+| Data type                          | Count |
 | ---------------------------------- | ----: |
 | Scientific documents               | 5,183 |
 | Test queries                       |   300 |
 | Query-document relevance judgments |   339 |
 | Processed passages                 | 8,854 |
 
-These values are generated directly from the local ingestion pipeline.
+These values were generated by the local preprocessing scripts rather than copied from an external benchmark table.
 
 ---
 
-## Dataset Structure
+# Data Structure
 
-The processed data is stored in JSON Lines format.
+## Documents
 
-### Documents
+Each normalized document contains:
 
 ```json
 {
-  "doc_id": "document-identifier",
-  "title": "Scientific document title",
-  "text": "Scientific abstract or document text",
+  "doc_id": "22843838",
+  "title": "Scientific article title",
+  "text": "Scientific abstract text",
   "source": "beir/scifact/test",
   "metadata": {
     "dataset": "SciFact",
     "task": "scientific claim verification",
-    "original_doc_id": "document-identifier",
+    "original_doc_id": "22843838",
     "text_length": 1250
   }
 }
 ```
 
-### Queries
+## Queries
 
 ```json
 {
   "query_id": "query-identifier",
-  "text": "A scientific claim used as a retrieval query",
+  "text": "A scientific claim or search query",
   "source": "beir/scifact/test",
   "metadata": {
     "dataset": "SciFact",
@@ -364,9 +387,9 @@ The processed data is stored in JSON Lines format.
 }
 ```
 
-### Relevance Judgments
+## Relevance Judgments
 
-A relevance judgment, commonly called a **qrel**, indicates which documents are considered relevant for a query.
+A relevance judgment, or qrel, indicates which document is considered relevant for a query.
 
 ```json
 {
@@ -378,14 +401,14 @@ A relevance judgment, commonly called a **qrel**, indicates which documents are 
 
 Qrels provide the ground truth required for retrieval evaluation.
 
-### Passages
+## Passages
 
 ```json
 {
-  "passage_id": "document-identifier::p0",
-  "doc_id": "document-identifier",
-  "title": "Scientific document title",
-  "text": "A chunk extracted from the document",
+  "passage_id": "22843838::p0",
+  "doc_id": "22843838",
+  "title": "Scientific article title",
+  "text": "A passage extracted from the article",
   "source": "beir/scifact/test",
   "metadata": {
     "chunk_index": 0,
@@ -399,96 +422,90 @@ Qrels provide the ground truth required for retrieval evaluation.
 
 ---
 
-## Passage Chunking
+# Passage Chunking
 
-Retrieval systems often search passages rather than complete documents.
+The retrieval system searches passages rather than only complete documents.
 
-Long documents may contain several unrelated sections. Representing the entire document as one unit can dilute the relevant information, especially when using a single dense embedding.
+Long documents may contain several topics. Encoding or indexing a complete document as one unit can dilute the relevant information. Passage retrieval allows the system to return a more focused section.
 
-The current preprocessing configuration uses:
+The current configuration uses:
 
 ```text
 Chunk size:    180 words
 Chunk overlap: 40 words
 ```
 
-The overlap reduces the chance that an important sentence or concept is separated at a chunk boundary.
+The overlap reduces the chance that an important sentence or concept will be lost at a chunk boundary.
 
-Each passage maintains a connection to its original document through:
+Each passage preserves its relationship with the source document:
 
 ```text
-passage_id → unique passage identifier
-doc_id     → original document identifier
+passage_id → unique passage
+doc_id     → original document
 ```
 
-This mapping is important because:
-
-* Retrieval operates at passage level.
-* SciFact relevance judgments are defined at document level.
-* Evaluation must map retrieved passages back to their parent documents.
-
-Chunking is treated as an experimental design choice rather than a universally optimal configuration. Future experiments may compare different chunk sizes and overlaps.
+This distinction is important because retrieval occurs at passage level, while SciFact qrels are defined at document level.
 
 ---
 
-## System Architecture
+# System Architecture
 
 ```text
-                         ┌─────────────────────┐
-                         │    SciFact Dataset  │
-                         └──────────┬──────────┘
+                         ┌──────────────────────┐
+                         │   SciFact Dataset    │
+                         └──────────┬───────────┘
                                     │
                                     ▼
-                         ┌─────────────────────┐
-                         │ Data Ingestion      │
-                         │ JSONL Normalization │
-                         └──────────┬──────────┘
+                         ┌──────────────────────┐
+                         │ Data Ingestion       │
+                         │ JSONL Normalization  │
+                         └──────────┬───────────┘
                                     │
                                     ▼
-                         ┌─────────────────────┐
-                         │ Passage Chunking    │
-                         │ 180 words / 40 ovlp │
-                         └──────────┬──────────┘
+                         ┌──────────────────────┐
+                         │ Passage Chunking     │
+                         │ 180 words / 40 ovlp  │
+                         └──────────┬───────────┘
                                     │
-                ┌───────────────────┼───────────────────┐
-                │                   │                   │
-                ▼                   ▼                   ▼
-        ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-        │ BM25 Index    │   │ FAISS Index   │   │ ColBERT Index │
-        │ Sparse Search │   │ Dense Search  │   │ Late Interact.│
-        └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
-                │                   │                   │
-                └───────────────────┼───────────────────┘
+                 ┌──────────────────┼───────────────────┐
+                 │                  │                   │
+                 ▼                  ▼                   ▼
+        ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+        │ BM25 Index     │ │ FAISS Index    │ │ ColBERT Index  │
+        │ Sparse Search  │ │ Dense Search   │ │ Late Interaction│
+        └───────┬────────┘ └───────┬────────┘ └───────┬────────┘
+                │                  │                   │
+                └──────────────────┼───────────────────┘
+                                   │
+                                   ▼
+                         ┌──────────────────────┐
+                         │ Ranked Top-k Results │
+                         │ Passage + Score      │
+                         └──────────┬───────────┘
                                     │
-                                    ▼
-                         ┌─────────────────────┐
-                         │ Ranked Top-k Results│
-                         │ Passage + Score     │
-                         └──────────┬──────────┘
-                                    │
-                     ┌──────────────┴──────────────┐
-                     │                             │
-                     ▼                             ▼
-          ┌─────────────────────┐       ┌─────────────────────┐
-          │ Retrieval Evaluation│       │ Optional RAG Answer │
-          │ Recall / MRR / nDCG │       │ Source-grounded LLM │
-          └─────────────────────┘       └─────────────────────┘
+                   ┌────────────────┴────────────────┐
+                   │                                 │
+                   ▼                                 ▼
+        ┌──────────────────────┐          ┌──────────────────────┐
+        │ Retrieval Evaluation │          │ Optional RAG Answer  │
+        │ Recall / MRR / nDCG  │          │ Source-grounded LLM  │
+        └──────────────────────┘          └──────────────────────┘
 ```
 
 ---
 
-## Current Pipeline
+# Implemented Pipeline
 
-### 1. Dataset ingestion
+## 1. SciFact ingestion
 
 The ingestion module:
 
-* Downloads SciFact through `ir-datasets`.
-* Loads documents.
-* Loads test queries.
-* Loads query-document relevance judgments.
-* Converts the data into a consistent JSONL structure.
-* Preserves source and metadata information.
+* Downloads SciFact through `ir-datasets`
+* Loads scientific documents
+* Loads test queries
+* Loads relevance judgments
+* Converts the data into consistent JSONL files
+* Preserves source and metadata fields
 
 Run:
 
@@ -504,15 +521,18 @@ data/processed/queries.jsonl
 data/processed/qrels.jsonl
 ```
 
-### 2. Passage generation
+---
+
+## 2. Passage generation
 
 The chunking module:
 
-* Reads normalized documents.
-* Combines the title and abstract text.
-* Splits documents into overlapping word-based passages.
-* Assigns unique passage identifiers.
-* Preserves parent-document mappings.
+* Reads normalized documents
+* Combines document titles and abstract text
+* Splits documents into overlapping word-based passages
+* Assigns unique passage IDs
+* Preserves original document IDs
+* Saves chunk metadata
 
 Run:
 
@@ -526,18 +546,27 @@ Generated file:
 data/processed/passages.jsonl
 ```
 
-### 3. BM25 indexing and retrieval
+Current output:
+
+```text
+Documents processed: 5,183
+Passages created:    8,854
+```
+
+---
+
+## 3. BM25 retrieval
 
 The BM25 module:
 
-* Reads processed passages.
-* Normalizes and tokenizes passage text.
-* Builds an in-memory BM25 index.
-* Scores every passage for an input query.
-* Sorts results by BM25 score.
-* Returns ranked passages with metadata.
+* Loads processed passages
+* Applies lowercase regex tokenization
+* Builds an in-memory BM25 index
+* Scores every passage for a query
+* Sorts results by BM25 score
+* Returns passage text, title, document ID, source, and metadata
 
-Example:
+Run:
 
 ```bash
 python -m src.retrieval.bm25 \
@@ -545,112 +574,253 @@ python -m src.retrieval.bm25 \
   --top-k 5
 ```
 
-The returned result structure contains:
+BM25 scores are ranking scores.
 
-```text
-rank
-score
-passage_id
-doc_id
-title
-text
-source
-metadata
-```
+They are:
 
-BM25 scores are ranking scores, not probabilities. They are primarily meaningful when comparing documents returned for the same query.
+* Not probabilities
+* Not percentages
+* Not directly comparable across unrelated queries
+* Not directly comparable with dense cosine similarity scores
 
 ---
 
-## Planned Dense Retrieval Pipeline
+## 4. Dense index construction
 
-The dense retrieval baseline will use a sentence-transformer model to encode passages and queries.
+The dense indexing pipeline:
 
-The planned pipeline is:
+1. Loads all processed passages
+2. Encodes passage text with `all-mpnet-base-v2`
+3. Generates normalized 768-dimensional embeddings
+4. Creates a FAISS `IndexFlatIP` index
+5. Adds all passage vectors
+6. Saves the FAISS index
+7. Saves passage-to-vector mappings
+8. Saves index metadata
 
-```text
-Passages
-    │
-    ▼
-Sentence Transformer
-    │
-    ▼
-Passage Embeddings
-    │
-    ▼
-FAISS Index
+Run:
+
+```bash
+python -m src.retrieval.build_dense_index --batch-size 32
 ```
 
-At search time:
+Generated files:
 
 ```text
-Query
-    │
-    ▼
-Sentence Transformer
-    │
-    ▼
-Query Embedding
-    │
-    ▼
-FAISS Similarity Search
-    │
-    ▼
-Top-k Passages
+indexes/dense/index.faiss
+indexes/dense/passages.jsonl
+indexes/dense/metadata.json
 ```
 
-The implementation will separate offline indexing from online search.
-
-Offline indexing:
-
-* Load passages.
-* Encode passage text in batches.
-* Normalize embeddings when cosine similarity is used.
-* Create a FAISS index.
-* Save the index and passage mapping to disk.
-
-Online search:
-
-* Load the saved index.
-* Encode the query.
-* Search the FAISS index.
-* Return ranked passages with similarity scores.
+Generated index files are excluded from Git because they can be reproduced from the source data and code.
 
 ---
 
-## Planned ColBERTv2 Pipeline
+## 5. Dense retrieval
 
-The ColBERTv2 phase will:
+At query time:
 
-* Convert processed passages into a ColBERT-compatible collection.
-* Load a pretrained ColBERTv2 checkpoint.
-* Generate token-level passage representations.
-* Build a compressed multi-vector index.
-* Encode incoming queries.
-* Apply late-interaction scoring.
-* Return ranked passage results.
-* Compare results with BM25 and dense retrieval.
+1. The FAISS index is loaded
+2. The same embedding model is loaded
+3. The query is encoded
+4. The query vector is normalized
+5. FAISS performs exact inner-product search
+6. The top passages are returned
 
-Because ColBERT indexing is more resource-intensive than BM25 or small-scale dense retrieval, this phase may use:
+Run:
 
-* WSL2 with a compatible Python environment.
-* A dedicated Conda environment.
-* A CUDA-enabled GPU.
-* Google Colab for the initial indexing experiment.
+```bash
+python -m src.retrieval.dense \
+  --query "Vitamin D deficiency increases the risk of multiple sclerosis" \
+  --top-k 5
+```
 
-The produced ColBERT index will remain compatible with the same processed SciFact collection used by the other retrieval methods.
+Because both passage and query embeddings are normalized, the inner-product score corresponds to cosine similarity.
+
+The score is not a probability or correctness percentage.
 
 ---
 
-## Retrieval Evaluation
+## 6. BM25 and dense comparison
 
-The project uses qrels to compare retrieved documents with known relevant documents.
+The comparison module runs both methods for the same query.
 
-The main metrics are:
+```bash
+python -m src.retrieval.compare \
+  --query "Vitamin D deficiency increases the risk of multiple sclerosis" \
+  --top-k 5
+```
 
-### Recall@5
+The module reports:
 
-Recall@5 measures how many relevant documents were retrieved within the first five results.
+* BM25 top-k results
+* Dense top-k results
+* Common passages
+* Common documents
+* Unique document counts
+* Document-level Jaccard overlap
+
+Results can also be saved:
+
+```bash
+python -m src.retrieval.compare \
+  --query "Vitamin D deficiency increases the risk of multiple sclerosis" \
+  --top-k 5 \
+  --output experiments/vitamin_d_comparison.json
+```
+
+The overlap values are qualitative analysis tools. They are not replacements for Recall, MRR, or nDCG.
+
+---
+
+# Initial Dense Index Experiment
+
+The first dense index was generated locally using a CPU environment.
+
+| Property                   |                                        Value |
+| -------------------------- | -------------------------------------------: |
+| Indexed passages           |                                        8,854 |
+| Saved passage mappings     |                                        8,854 |
+| Embedding model            |    `sentence-transformers/all-mpnet-base-v2` |
+| Embedding dimension        |                                          768 |
+| FAISS index                |                                `IndexFlatIP` |
+| Similarity                 | Normalized inner product / cosine similarity |
+| Embedding device           |                                          CPU |
+| Batch size                 |                                           32 |
+| Build time                 |                               934.09 seconds |
+| Approximate build duration |                        15 minutes 34 seconds |
+
+This is an offline indexing cost. Passage embeddings do not need to be regenerated for every query.
+
+---
+
+# Initial Qualitative Retrieval Experiment
+
+The following query was tested:
+
+```text
+Vitamin D deficiency increases the risk of multiple sclerosis
+```
+
+## BM25 top result
+
+```text
+Document ID: 22843838
+Passage ID:  22843838::p0
+Title:       [Vitamin D and latitude as environmental factors in multiple sclerosis].
+BM25 score:  36.6362
+```
+
+## Dense top result
+
+```text
+Document ID: 22843838
+Passage ID:  22843838::p0
+Title:       [Vitamin D and latitude as environmental factors in multiple sclerosis].
+Dense score: 0.7737
+```
+
+Both methods returned the same highly relevant passage at rank one.
+
+The dense retriever also returned passages related to:
+
+* Sunlight exposure
+* Ultraviolet radiation
+* Vitamin D production
+* Multiple sclerosis risk
+
+This demonstrates the ability of dense retrieval to capture concepts that are semantically related even when the exact query wording is not repeated.
+
+However, lower-ranked dense results also included passages primarily focused on general vitamin D research. These passages were semantically close to the query but did not fully address multiple sclerosis.
+
+This is an example of **semantic drift**:
+
+> A passage may be semantically related to the general topic while failing to satisfy the complete information need.
+
+---
+
+## Top-5 overlap
+
+The first comparison produced:
+
+| Measurement              |  Value |
+| ------------------------ | -----: |
+| Common passages          |      2 |
+| Common documents         |      2 |
+| Unique BM25 documents    |      4 |
+| Unique dense documents   |      4 |
+| Document Jaccard overlap | 0.3333 |
+
+Common document IDs:
+
+```text
+22843838
+23267371
+```
+
+A Jaccard value of `0.3333` shows that the two retrieval methods shared some results while also producing meaningfully different rankings.
+
+This is expected because:
+
+* BM25 prioritizes lexical overlap
+* Dense retrieval prioritizes embedding similarity
+* Both methods can find relevant evidence through different signals
+
+No conclusion about the superior method will be made from one query. The complete test set will be evaluated using qrels.
+
+---
+
+# Passage-Level Retrieval and Document-Level Evaluation
+
+The system retrieves passages:
+
+```text
+22843838::p0
+22843838::p1
+```
+
+However, SciFact qrels identify relevant documents:
+
+```text
+22843838
+```
+
+Multiple retrieved passages may therefore belong to the same source document.
+
+Before evaluation:
+
+1. Each retrieved passage will be mapped to its parent `doc_id`
+2. Duplicate document IDs will be removed
+3. The highest-ranked passage will define the document rank
+4. The deduplicated document ranking will be compared with qrels
+
+Example:
+
+```text
+Passage ranking:
+1. A::p1
+2. A::p0
+3. B::p0
+4. C::p2
+```
+
+Document ranking:
+
+```text
+1. A
+2. B
+3. C
+```
+
+Without deduplication, one document could occupy several positions and distort the evaluation.
+
+---
+
+# Planned Evaluation Metrics
+
+## Recall@5
+
+Recall@5 measures how many relevant documents are found in the first five retrieved documents.
 
 ```text
 Recall@5 =
@@ -659,17 +829,21 @@ relevant documents found in top 5
 total relevant documents
 ```
 
-A high Recall@5 means the retriever frequently places relevant evidence near the top of the result list.
+A high Recall@5 indicates that relevant evidence is frequently retrieved near the top.
 
-### Recall@10
+---
 
-Recall@10 applies the same idea to the first ten results.
+## Recall@10
 
-It shows whether increasing the retrieval depth allows the system to recover additional relevant evidence.
+Recall@10 uses the same calculation for the first ten results.
 
-### MRR@10
+It shows whether increasing retrieval depth recovers additional relevant documents.
 
-Mean Reciprocal Rank focuses on the position of the first relevant result.
+---
+
+## MRR@10
+
+Mean Reciprocal Rank focuses on the rank of the first relevant result.
 
 ```text
 Reciprocal Rank = 1 / rank of first relevant result
@@ -684,67 +858,77 @@ First relevant result at rank 5 → 0.20
 No relevant result in top 10    → 0.00
 ```
 
-MRR@10 is the average reciprocal rank across all evaluated queries, considering only the first ten results.
-
-### nDCG@10
-
-Normalized Discounted Cumulative Gain evaluates ranking quality while giving more importance to relevant results placed near the top.
-
-The contribution of a result is discounted as its rank becomes lower.
-
-nDCG is especially useful when relevance judgments contain multiple relevance levels. It is also commonly reported in retrieval benchmarks, allowing results to be compared with other systems.
+MRR@10 averages this value across all evaluated queries.
 
 ---
 
-## Planned Evaluation Table
+## nDCG@10
 
-The final measured results will be added after all retrieval methods are executed on the same query set.
+Normalized Discounted Cumulative Gain evaluates ranking quality while giving higher importance to relevant documents appearing near the top.
+
+Relevant results at lower positions contribute less because their gain is discounted by rank.
+
+nDCG is especially useful when relevance judgments contain graded relevance levels.
+
+---
+
+## Planned evaluation table
+
+All values will be generated by this repository's own evaluation pipeline.
 
 | Method          | Recall@5 | Recall@10 | MRR@10 | nDCG@10 | Notes                         |
 | --------------- | -------: | --------: | -----: | ------: | ----------------------------- |
-| BM25            |      TBD |       TBD |    TBD |     TBD | Lexical keyword baseline      |
+| BM25            |      TBD |       TBD |    TBD |     TBD | Lexical baseline              |
 | Dense Retrieval |      TBD |       TBD |    TBD |     TBD | Sentence Transformers + FAISS |
-| ColBERTv2       |      TBD |       TBD |    TBD |     TBD | Token-level late interaction  |
+| ColBERTv2       |      TBD |       TBD |    TBD |     TBD | Late interaction retrieval    |
 
-No metric will be added manually or copied from another implementation. All values in this table will be generated by this repository's evaluation pipeline.
-
----
-
-## Passage-Level Retrieval and Document-Level Evaluation
-
-One important evaluation detail is that the system retrieves passages, while SciFact qrels identify relevant documents.
-
-A single document may produce multiple passages:
-
-```text
-Document 123
-├── 123::p0
-├── 123::p1
-└── 123::p2
-```
-
-Before calculating document-level metrics:
-
-1. Retrieved passages are mapped to their parent `doc_id`.
-2. Duplicate document IDs are removed.
-3. The highest-ranked passage determines the document's rank.
-4. The resulting document ranking is compared with qrels.
-
-Without this step, retrieving multiple passages from the same document could incorrectly occupy several ranking positions and distort evaluation results.
+No metric will be manually estimated or copied from another experiment.
 
 ---
 
-## Planned API
+# Planned ColBERTv2 Pipeline
 
-The backend will be implemented with FastAPI.
+The ColBERTv2 phase will:
 
-### Search endpoint
+* Convert passages into a ColBERT-compatible collection
+* Load a pretrained ColBERTv2 checkpoint
+* Encode passages into contextualized token vectors
+* Build a compressed multi-vector index
+* Encode incoming queries
+* Apply late-interaction MaxSim scoring
+* Return ranked passages
+* Compare the results with BM25 and dense retrieval
+* Evaluate all methods on the same test queries
+
+ColBERTv2 may require a separate environment because of:
+
+* PyTorch compatibility
+* FAISS compatibility
+* CUDA requirements
+* Windows support limitations
+* GPU memory requirements
+
+Possible environments include:
+
+* WSL2
+* Conda
+* Linux
+* Google Colab
+* CUDA-enabled local environment
+
+---
+
+# Planned FastAPI Backend
+
+The backend will expose a method-independent search API.
+
+## Search endpoint
 
 ```http
 GET /search?q=<query>&method=<method>&top_k=<number>
 ```
 
-Supported retrieval methods:
+Supported methods:
 
 ```text
 bm25
@@ -755,7 +939,7 @@ colbert
 Example:
 
 ```http
-GET /search?q=vitamin%20d%20deficiency&method=bm25&top_k=5
+GET /search?q=vitamin%20d%20deficiency&method=dense&top_k=5
 ```
 
 Planned response:
@@ -763,74 +947,81 @@ Planned response:
 ```json
 {
   "query": "vitamin d deficiency",
-  "method": "bm25",
+  "method": "dense",
   "top_k": 5,
   "results": [
     {
       "rank": 1,
-      "passage_id": "123::p0",
-      "doc_id": "123",
-      "title": "Example scientific paper",
-      "text": "Retrieved passage text",
-      "score": 8.4217,
+      "passage_id": "22843838::p0",
+      "doc_id": "22843838",
+      "title": "Scientific article title",
+      "text": "Retrieved passage",
+      "score": 0.7737,
       "source": "beir/scifact/test"
     }
   ]
 }
 ```
 
-### Optional RAG endpoint
-
-```http
-POST /rag/answer
-```
-
-The optional RAG endpoint will:
-
-1. Receive a question.
-2. Retrieve the top passages.
-3. Construct a grounded prompt.
-4. Ask an LLM to answer only from the supplied context.
-5. Return the answer together with its source passages.
-
-The retrieval response will remain available independently of the LLM so that the project can run without answer-generation latency.
+Retriever instances will be loaded once when the API starts. They will not be reloaded for every request.
 
 ---
 
-## Planned Streamlit Interface
+# Planned Streamlit Interface
 
-The Streamlit application will provide:
+The Streamlit application will include:
 
-* A search input.
-* Retrieval-method selection.
-* Top-k selection.
-* Ranked result cards.
-* Passage text.
-* Document title.
-* Retrieval score.
-* Source and document ID.
-* Optional generated answer.
-* Optional side-by-side method comparison.
+* Search input
+* Retrieval method selection
+* Top-k selection
+* Ranked result cards
+* Passage title
+* Passage text
+* Retrieval score
+* Source
+* Passage ID
+* Document ID
+* Optional side-by-side comparison
+* Optional RAG answer section
 
-The UI is intended as a demonstration layer. Retrieval logic remains inside reusable Python modules rather than being implemented directly in the Streamlit file.
+The interface will remain separate from retrieval logic.
 
 ---
 
-## Optional RAG Answer Generation
+# Optional RAG Generation
 
-Answer generation is intentionally optional.
+The RAG stage will be optional because retrieval can be tested independently of an LLM.
 
-The first objective is to build a measurable retrieval system. After retrieval quality is established, the top passages can be provided to an LLM.
-
-A simplified prompt format will be:
+The planned process is:
 
 ```text
-You are given a question and a collection of retrieved scientific passages.
+Question
+   │
+   ▼
+Retriever
+   │
+   ▼
+Top 5 passages
+   │
+   ▼
+Grounded prompt
+   │
+   ▼
+LLM
+   │
+   ▼
+Answer + sources
+```
 
-Answer the question using only the supplied passages.
+A simplified grounding instruction:
+
+```text
+Answer the question using only the supplied scientific passages.
+
 Do not introduce unsupported information.
-If the passages do not contain sufficient evidence, state that the available
-sources are insufficient.
+
+If the passages do not contain sufficient evidence, state that the
+available sources are insufficient.
 
 Question:
 {query}
@@ -841,23 +1032,19 @@ Sources:
 [3] {passage_3}
 [4] {passage_4}
 [5] {passage_5}
-
-Answer:
 ```
 
-The final response will show both the answer and the passages used to construct it.
+Potential generator backends:
 
-Possible generator backends include:
+* Ollama
+* A small local instruction model
+* A hosted language-model API
 
-* Ollama.
-* A small local instruction model.
-* A hosted language-model API.
-
-The retrieval system will not depend on a specific generator.
+The retrieval architecture will not depend on a particular generator.
 
 ---
 
-## Repository Structure
+# Repository Structure
 
 ```text
 colbertv2-rag-search-engine/
@@ -876,7 +1063,13 @@ colbertv2-rag-search-engine/
 │
 ├── indexes/
 │   ├── dense/
+│   │   ├── index.faiss
+│   │   ├── passages.jsonl
+│   │   └── metadata.json
 │   └── colbert/
+│
+├── experiments/
+│   └── retrieval_comparisons/
 │
 ├── src/
 │   ├── __init__.py
@@ -889,7 +1082,9 @@ colbertv2-rag-search-engine/
 │   ├── retrieval/
 │   │   ├── __init__.py
 │   │   ├── bm25.py
+│   │   ├── build_dense_index.py
 │   │   ├── dense.py
+│   │   ├── compare.py
 │   │   └── colbert.py
 │   │
 │   ├── evaluation/
@@ -909,11 +1104,11 @@ colbertv2-rag-search-engine/
 │   └── streamlit_app.py
 │
 ├── configs/
-│   ├── retrieval.yaml
-│   └── models.yaml
+│   ├── models.yaml
+│   └── retrieval.yaml
 │
-├── experiments/
 ├── notebooks/
+│
 └── tests/
     ├── test_ingestion.py
     ├── test_bm25.py
@@ -921,71 +1116,67 @@ colbertv2-rag-search-engine/
     └── test_metrics.py
 ```
 
-Generated datasets, indexes, model files, and local environment files are excluded from Git through `.gitignore`.
+Generated data, model files, and indexes are excluded from version control.
 
 ---
 
-## Installation
+# Installation
 
-### Requirements
-
-The initial BM25 and dense-retrieval phases are designed to run locally.
-
-Recommended environment:
-
-```text
-Python 3.11 or newer
-Windows, Linux, or WSL2
-CPU for BM25
-CPU or GPU for dense embedding generation
-GPU recommended for ColBERTv2 indexing
-```
-
-### Clone the repository
+## Clone the repository
 
 ```bash
 git clone <repository-url>
 cd colbertv2-rag-search-engine
 ```
 
-### Create a virtual environment
+## Create a virtual environment
 
-Windows CMD:
+### Windows CMD
 
 ```cmd
 python -m venv .venv
 .venv\Scripts\activate.bat
 ```
 
-Windows PowerShell:
+### Windows PowerShell
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Linux or macOS:
+### Linux or macOS
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 ```
 
-### Install dependencies
+## Install dependencies
 
 ```bash
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### Prepare the dataset
+## Verify the environment
+
+```bash
+python -c "import ir_datasets, rank_bm25, faiss, torch, sentence_transformers; print('Environment OK')"
+```
+
+---
+
+# Usage
+
+## Prepare SciFact
 
 ```bash
 python -m src.ingestion.load_scifact
 python -m src.ingestion.chunk_docs
 ```
 
-### Run BM25 search
+## Run BM25
 
 ```bash
 python -m src.retrieval.bm25 \
@@ -993,75 +1184,97 @@ python -m src.retrieval.bm25 \
   --top-k 5
 ```
 
----
+## Build the dense index
 
-## Technology Stack
+```bash
+python -m src.retrieval.build_dense_index --batch-size 32
+```
 
-| Area                 | Technology                    |
-| -------------------- | ----------------------------- |
-| Programming language | Python                        |
-| Sparse retrieval     | rank-bm25                     |
-| Embedding models     | sentence-transformers         |
-| Vector search        | FAISS                         |
-| Late interaction     | ColBERT / ColBERTv2           |
-| Model execution      | PyTorch                       |
-| Data processing      | pandas, NumPy                 |
-| Dataset access       | ir-datasets                   |
-| Backend API          | FastAPI                       |
-| Demo interface       | Streamlit                     |
-| Testing              | pytest                        |
-| Optional deployment  | Docker                        |
-| Optional generation  | Ollama or another LLM backend |
+## Run dense retrieval
 
----
+```bash
+python -m src.retrieval.dense \
+  --query "Vitamin D deficiency increases the risk of multiple sclerosis" \
+  --top-k 5
+```
 
-## Engineering Principles
+## Compare BM25 and dense retrieval
 
-The repository follows several design principles.
+```bash
+python -m src.retrieval.compare \
+  --query "Vitamin D deficiency increases the risk of multiple sclerosis" \
+  --top-k 5
+```
 
-### Reproducibility
+## Save a comparison experiment
 
-* Dataset preparation is script-based.
-* Evaluation uses fixed queries and qrels.
-* Generated metrics will come from executable code.
-* Model and indexing configuration will be stored explicitly.
-
-### Separation of concerns
-
-* Ingestion prepares data.
-* Retrieval modules implement search methods.
-* Evaluation modules calculate metrics.
-* API modules expose retrieval services.
-* Streamlit provides only the presentation layer.
-* RAG generation remains optional and independent.
-
-### Comparable experiments
-
-All methods will use:
-
-* The same document collection.
-* The same passage representation where technically appropriate.
-* The same queries.
-* The same qrels.
-* The same evaluation metrics.
-* The same top-k definitions.
-
-### Honest reporting
-
-The README distinguishes between:
-
-* Implemented features.
-* Planned features.
-* Measured results.
-* Expected behavior.
-
-Incomplete components are not presented as finished, and evaluation values are not reported before the experiment is run.
+```bash
+python -m src.retrieval.compare \
+  --query "Vitamin D deficiency increases the risk of multiple sclerosis" \
+  --top-k 5 \
+  --output experiments/vitamin_d_comparison.json
+```
 
 ---
 
-## Current Project Status
+# Technology Stack
 
-* [x] Repository structure
+| Area                | Technology            |
+| ------------------- | --------------------- |
+| Language            | Python                |
+| Dataset access      | ir-datasets           |
+| Sparse retrieval    | rank-bm25             |
+| Embeddings          | sentence-transformers |
+| Dense model         | all-mpnet-base-v2     |
+| Vector search       | FAISS                 |
+| Late interaction    | ColBERT / ColBERTv2   |
+| Model execution     | PyTorch               |
+| Data processing     | NumPy, pandas         |
+| Backend             | FastAPI               |
+| Demo UI             | Streamlit             |
+| Testing             | pytest                |
+| Optional generation | Ollama or hosted LLM  |
+| Optional deployment | Docker                |
+
+---
+
+# Engineering Decisions
+
+## Retrieval-first development
+
+The generator is intentionally postponed until retrieval quality has been measured.
+
+## Offline indexing
+
+Passage embeddings are generated once and stored in a FAISS index. Query search does not re-encode the complete corpus.
+
+## Shared corpus
+
+BM25, dense retrieval, and ColBERTv2 use the same source documents and passage preparation pipeline where technically appropriate.
+
+## Reproducibility
+
+Dataset preparation, indexing, retrieval, comparison, and evaluation are script-based.
+
+## Honest experiment reporting
+
+The README separates:
+
+* Implemented components
+* Planned components
+* Qualitative observations
+* Measured results
+* Metrics that have not yet been calculated
+
+## Modular architecture
+
+Data ingestion, retrieval, evaluation, API, UI, and RAG generation are implemented as separate modules.
+
+---
+
+# Current Project Status
+
+* [x] Git repository initialization
 * [x] Python virtual environment
 * [x] SciFact dataset loading
 * [x] Document normalization
@@ -1069,201 +1282,172 @@ Incomplete components are not presented as finished, and evaluation values are n
 * [x] Qrel extraction
 * [x] Passage chunking
 * [x] BM25 retrieval baseline
-* [x] BM25 automated tests
 * [x] Dense passage embedding generation
 * [x] FAISS vector index
 * [x] Dense retrieval search
-* [ ] ColBERTv2-compatible collection
-* [ ] ColBERTv2 index
-* [ ] Late-interaction search
+* [x] BM25 and dense comparison script
+* [x] Initial qualitative comparison
+* [ ] Automated ingestion tests
+* [ ] Automated BM25 tests
+* [ ] Automated dense retrieval tests
+* [ ] Document-level retrieval evaluation
 * [ ] Recall@5
 * [ ] Recall@10
 * [ ] MRR@10
 * [ ] nDCG@10
-* [ ] FastAPI search service
-* [ ] Streamlit demo
-* [ ] Optional source-grounded RAG generation
+* [ ] ColBERTv2-compatible collection
+* [ ] ColBERTv2 index
+* [ ] Late-interaction retrieval
+* [ ] Three-method comparison
+* [ ] FastAPI backend
+* [ ] Streamlit interface
+* [ ] Optional RAG answer generation
 * [ ] Docker configuration
-* [ ] Final experiment report
+* [ ] GitHub Actions
+* [ ] Final experimental report
 
 ---
 
-## Development Roadmap
+# Development Roadmap
 
-### Phase 1 — Dataset and preprocessing
+## Phase 1 — Dataset and preprocessing
 
-* Load SciFact.
-* Normalize documents, queries, and qrels.
-* Divide documents into passages.
-* Preserve passage-to-document mappings.
+* Load SciFact
+* Normalize documents
+* Extract queries
+* Extract qrels
+* Generate passages
+* Preserve passage-document mappings
 
 **Status: Completed**
 
-### Phase 2 — BM25 baseline
+## Phase 2 — BM25 baseline
 
-* Build a keyword-based passage index.
-* Run top-k retrieval.
-* Return scores and metadata.
-* Add BM25 tests.
-* Evaluate BM25 on all test queries.
+* Build BM25 passage index
+* Implement top-k search
+* Return scores and metadata
+* Test representative queries
 
-**Status: Core retrieval completed**
+**Status: Completed**
 
-### Phase 3 — Dense retrieval
+## Phase 3 — Dense retrieval
 
-* Select a sentence-transformer model.
-* Generate passage embeddings.
-* Build a FAISS index.
-* Implement query encoding and nearest-neighbor search.
-* Compare results with BM25.
+* Select embedding model
+* Generate normalized passage vectors
+* Build FAISS index
+* Save index metadata
+* Implement query encoding
+* Implement nearest-neighbor search
+* Compare with BM25
+
+**Status: Completed**
+
+## Phase 4 — Evaluation
+
+* Load all test queries
+* Load qrels
+* Retrieve top results
+* Convert passage rankings to document rankings
+* Deduplicate documents
+* Calculate Recall@5
+* Calculate Recall@10
+* Calculate MRR@10
+* Calculate nDCG@10
+* Export Markdown and JSON result reports
 
 **Status: Next phase**
 
-### Phase 4 — ColBERTv2
+## Phase 5 — ColBERTv2
 
-* Prepare a ColBERT-compatible collection.
-* Build a token-level index.
-* Implement late-interaction retrieval.
-* Inspect qualitative differences between methods.
-
-**Status: Planned**
-
-### Phase 5 — Evaluation
-
-* Map passages to document IDs.
-* Calculate Recall@5.
-* Calculate Recall@10.
-* Calculate MRR@10.
-* Calculate nDCG@10.
-* Generate a Markdown result table.
+* Prepare collection
+* Configure environment
+* Load pretrained checkpoint
+* Build compressed multi-vector index
+* Run late-interaction retrieval
+* Compare all methods
+* Add ColBERT metrics
 
 **Status: Planned**
 
-### Phase 6 — API
+## Phase 6 — FastAPI
 
-* Initialize FastAPI.
-* Create method-independent search schemas.
-* Add BM25, dense, and ColBERT search options.
-* Add validation and error handling.
-* Generate OpenAPI documentation.
-
-**Status: Planned**
-
-### Phase 7 — User interface
-
-* Build the Streamlit search interface.
-* Display ranked result cards.
-* Add method and top-k controls.
-* Display scores and metadata.
+* Add retriever registry
+* Load models once at startup
+* Implement search endpoint
+* Add request validation
+* Add health endpoint
+* Add OpenAPI documentation
 
 **Status: Planned**
 
-### Phase 8 — Optional RAG
+## Phase 7 — Streamlit
 
-* Retrieve top passages.
-* Construct a grounded prompt.
-* Connect an optional LLM backend.
-* Return answers with sources.
+* Add query input
+* Add method selection
+* Add top-k selection
+* Add result cards
+* Add comparison view
+* Display scores and sources
+
+**Status: Planned**
+
+## Phase 8 — Optional RAG
+
+* Retrieve top passages
+* Construct grounded prompt
+* Connect optional LLM backend
+* Generate source-based answer
+* Display cited passages
 
 **Status: Planned**
 
 ---
 
-## Planned Experiments
+# Limitations
 
-In addition to the main method comparison, the following experiments may be included:
+The current project has several limitations:
 
-### Chunk-size comparison
+* SciFact is small compared with production-scale corpora.
+* Documents are primarily abstracts rather than complete papers.
+* BM25 currently uses a simple regex tokenizer.
+* Chunking is word-based rather than sentence-aware.
+* Dense retrieval quality depends on the selected embedding model.
+* A single-vector embedding may lose fine-grained information.
+* Dense retrieval may experience semantic drift.
+* Passage-level duplicates must be handled during evaluation.
+* ColBERTv2 may require a separate GPU-compatible environment.
+* Retrieval relevance does not guarantee answer factuality.
+* RAG generation requires separate faithfulness evaluation.
 
-```text
-100 words / 20 overlap
-180 words / 40 overlap
-250 words / 50 overlap
-```
-
-This experiment will measure how passage size affects retrieval quality.
-
-### Dense-model comparison
-
-Candidate sentence-transformer models may be compared using the same FAISS pipeline.
-
-The final model will not be selected only by popularity. Selection will consider:
-
-* Retrieval quality.
-* Embedding dimension.
-* Index size.
-* Encoding speed.
-* CPU performance.
-* Domain suitability.
-
-### Qualitative error analysis
-
-Queries will be inspected where:
-
-* BM25 succeeds and dense retrieval fails.
-* Dense retrieval succeeds and BM25 fails.
-* ColBERTv2 improves over both baselines.
-* All methods fail.
-
-This analysis will help explain why metric differences occur.
-
-### Latency comparison
-
-The project may record:
-
-```text
-Index build time
-Query encoding time
-Average retrieval latency
-Index size
-Memory usage
-```
-
-This allows retrieval quality to be evaluated together with computational cost.
+These limitations are reported explicitly and may be used as directions for future experiments.
 
 ---
 
-## Limitations
+# Future Improvements
 
-The initial project has several known limitations:
+Potential extensions include:
 
-* SciFact is relatively small compared with production-scale corpora.
-* Most source documents are scientific abstracts rather than full papers.
-* The initial tokenizer used for BM25 is intentionally simple.
-* Word-based chunking does not understand sentence or section boundaries.
-* Dense retrieval quality depends heavily on the selected embedding model.
-* ColBERTv2 indexing may require a separate GPU-compatible environment.
-* SciFact qrels may not identify every passage that is semantically related to a query.
-* Retrieval relevance does not automatically imply that a generated answer is factually correct.
-* The optional RAG component will require separate faithfulness evaluation.
+* Hybrid BM25 and dense retrieval
+* Reciprocal Rank Fusion
+* Cross-encoder reranking
+* Sentence-aware chunking
+* Chunk-size experiments
+* Embedding-model comparison
+* Query expansion
+* Full-paper PDF ingestion
+* Additional BEIR datasets
+* NFCorpus evaluation
+* Scientific-domain embedding models
+* Search latency benchmarking
+* Memory and index-size benchmarking
+* Cached model loading
+* Dockerized services
+* GitHub Actions
+* Source citation extraction
+* RAG faithfulness metrics
+* Experiment tracking
 
-These limitations are treated as opportunities for further experimentation rather than hidden implementation details.
-
----
-
-## Future Improvements
-
-Possible extensions include:
-
-* Hybrid BM25 and dense retrieval.
-* Reciprocal Rank Fusion.
-* Neural reranking with a cross-encoder.
-* Query expansion.
-* Sentence-aware chunking.
-* Full-paper PDF ingestion.
-* Additional BEIR datasets.
-* NFCorpus evaluation.
-* Scientific-domain embedding models.
-* Retrieval latency benchmarks.
-* Index persistence and caching.
-* Asynchronous FastAPI endpoints.
-* Dockerized API and UI services.
-* Source citation extraction.
-* RAG faithfulness evaluation.
-* Experiment tracking.
-* Automated CI tests with GitHub Actions.
-
-A particularly useful extension would be a hybrid pipeline:
+A potential hybrid architecture:
 
 ```text
 BM25 candidates
@@ -1271,40 +1455,50 @@ BM25 candidates
 Dense candidates
         │
         ▼
-Rank fusion or reranker
+Reciprocal Rank Fusion
         │
         ▼
-Final ranked results
+Optional cross-encoder reranking
+        │
+        ▼
+Final result list
 ```
 
-This would test whether lexical and semantic retrieval signals complement each other.
+---
+
+# Research Background
+
+The project is primarily inspired by:
+
+1. **ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT**
+2. **ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction**
+3. **BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models**
+4. **Fact or Fiction: Verifying Scientific Claims**
+
+These works provide the research foundation for the dataset, retrieval architectures, and evaluation approach used in this repository.
 
 ---
 
-## Research References
+# Author's Note
 
-1. Keshav Santhanam, Omar Khattab, Jon Saad-Falcon, Christopher Potts, and Matei Zaharia.
-   **ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction.**
-   NAACL 2022.
+I created this project to study modern information retrieval through implementation rather than only theoretical reading.
 
-2. Omar Khattab and Matei Zaharia.
-   **ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT.**
-   SIGIR 2020.
+The project begins with a classical lexical baseline, continues with single-vector semantic retrieval, and then progresses toward token-level late interaction with ColBERTv2.
 
-3. Nandan Thakur, Nils Reimers, Andreas Rücklé, Abhishek Srivastava, and Iryna Gurevych.
-   **BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models.**
-   NeurIPS 2021 Datasets and Benchmarks Track.
+My objective is not simply to use pretrained models as black-box APIs. I want to understand the complete retrieval workflow:
 
-4. David Wadden, Shanchuan Lin, Kyle Lo, Lucy Lu Wang, Madeleine van Zuylen, Arman Cohan, and Hannaneh Hajishirzi.
-   **Fact or Fiction: Verifying Scientific Claims.**
-   EMNLP 2020.
+```text
+Raw documents
+    → preprocessing
+    → passages
+    → indexing
+    → query encoding
+    → similarity scoring
+    → ranking
+    → evaluation
+    → API
+    → user interface
+    → optional RAG generation
+```
 
----
-
-## Author's Note
-
-I developed this project as a practical study of modern information retrieval.
-
-Rather than treating RAG as a single model or API call, I wanted to separate its components and understand the retrieval stage in detail. The project therefore starts with a traditional lexical baseline, progresses to dense semantic retrieval, and then implements the token-level late interaction approach introduced by ColBERT and improved by ColBERTv2.
-
-The final goal is not only to produce a working search application, but also to create a reproducible comparison showing where different retrieval architectures succeed, where they fail, and what engineering trade-offs they introduce.
+The final result will be a reproducible search system that shows both retrieval quality and engineering trade-offs across multiple approaches.

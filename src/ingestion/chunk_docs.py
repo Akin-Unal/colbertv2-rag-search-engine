@@ -11,6 +11,24 @@ OUTPUT_PATH = Path("data/processed/passages.jsonl")
 CHUNK_SIZE_WORDS = 180
 CHUNK_OVERLAP_WORDS = 40
 
+def combine_title_and_text(title: str, text: str) -> str:
+    """
+    Combine a document title and body without producing
+    duplicate punctuation such as '..'.
+    """
+    title = title.strip()
+    text = text.strip()
+
+    if not title:
+        return text
+
+    if not text:
+        return title
+
+    if title.endswith((".", "!", "?", ":", ";")):
+        return f"{title} {text}"
+
+    return f"{title}. {text}"
 
 def read_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as f:
@@ -53,7 +71,7 @@ def main() -> None:
             title = doc["title"].strip()
             text = doc["text"].strip()
 
-            combined_text = f"{title}. {text}" if title else text
+            combined_text = combine_title_and_text(title, text)
             words = combined_text.split()
 
             if not words:
