@@ -1069,10 +1069,10 @@ Incomplete components are not presented as finished, and evaluation values are n
 * [x] Qrel extraction
 * [x] Passage chunking
 * [x] BM25 retrieval baseline
-* [ ] BM25 automated tests
-* [ ] Dense passage embedding generation
-* [ ] FAISS vector index
-* [ ] Dense retrieval search
+* [x] BM25 automated tests
+* [x] Dense passage embedding generation
+* [x] FAISS vector index
+* [x] Dense retrieval search
 * [ ] ColBERTv2-compatible collection
 * [ ] ColBERTv2 index
 * [ ] Late-interaction search
