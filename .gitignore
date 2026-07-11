@@ -13,3 +13,11 @@ models/
 
 .DS_Store
 .ipynb_checkpoints/
+
+# Evaluation outputs
+experiments/evaluation/*.json
+!experiments/evaluation/summary.md
+
+# ColBERT / RAGatouille generated indexes
+.ragatouille/
+colbert_indexes/
