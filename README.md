@@ -1501,4 +1501,33 @@ Raw documents
     → optional RAG generation
 ```
 
-The final result will be a reproducible search system that shows both retrieval quality and engineering trade-offs across multiple approaches.
+## Retrieval Evaluation Results
+
+The retrieval methods were evaluated on the SciFact test split using document-level relevance judgments.
+
+Although the system retrieves passages, SciFact relevance labels are defined at document level. Therefore, retrieved passages are mapped back to their parent `doc_id`, duplicate documents are removed, and the resulting document ranking is evaluated against qrels.
+
+The evaluation uses:
+
+```text
+Candidate passage depth: 50
+Evaluation document depth: 10
+Evaluated queries: 300
+```
+
+| Method | Recall@5 | Recall@10 | MRR@10 | nDCG@10 | Notes                         |
+| ------ | -------: | --------: | -----: | ------: | ----------------------------- |
+| BM25   |   0.7112 |    0.7640 | 0.6162 |  0.6471 | Lexical keyword baseline      |
+| DENSE  |   0.7127 |    0.7981 | 0.6062 |  0.6480 | Sentence Transformers + FAISS |
+
+### Evaluation Analysis
+
+The dense retrieval baseline achieves a higher `Recall@10` than BM25, which means it retrieves more relevant documents when the system is allowed to inspect the top ten results.
+
+BM25 achieves a slightly higher `MRR@10`, showing that it remains very competitive at ranking the first relevant document near the top. This is expected in a scientific retrieval dataset because lexical overlap, rare terminology, and exact scientific expressions are highly informative.
+
+The `nDCG@10` scores are very close, with dense retrieval slightly ahead. This suggests that both methods produce comparable ranking quality on this dataset, but they may retrieve relevant evidence through different signals.
+
+Overall, the result supports the motivation for comparing multiple retrieval architectures instead of assuming that a neural method will always dominate a lexical baseline.
+
+The next step is to add ColBERTv2, which may preserve more token-level matching information than single-vector dense retrieval.
