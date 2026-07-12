@@ -12,15 +12,16 @@ from src.evaluation.metrics import (
     evaluate_single_query,
     passage_results_to_document_ranking,
 )
-from src.retrieval.bm25 import BM25Retriever
-from src.retrieval.dense import DenseRetriever
-
 
 DEFAULT_QUERIES_PATH = Path("data/processed/queries.jsonl")
 DEFAULT_QRELS_PATH = Path("data/processed/qrels.jsonl")
 DEFAULT_PASSAGES_PATH = Path("data/processed/passages.jsonl")
 DEFAULT_DENSE_INDEX_DIR = Path("indexes/dense")
 DEFAULT_OUTPUT_DIR = Path("experiments/evaluation")
+
+DEFAULT_COLBERT_ROOT = Path("colbert_experiments")
+DEFAULT_COLBERT_EXPERIMENT_NAME = "scifact_colbertv2"
+DEFAULT_COLBERT_INDEX_NAME = "scifact.dmax128.nbits2"
 
 
 def read_jsonl(path: Path) -> Iterable[dict[str, Any]]:
@@ -60,9 +61,7 @@ def load_queries(path: Path) -> list[dict[str, Any]]:
     return queries
 
 
-def load_qrels(
-    path: Path,
-) -> dict[str, dict[str, int]]:
+def load_qrels(path: Path) -> dict[str, dict[str, int]]:
     """
     Load qrels as:
 
@@ -215,14 +214,23 @@ def create_markdown_table(
     notes = {
         "bm25": "Lexical keyword baseline",
         "dense": "Sentence Transformers + FAISS",
+        "colbert": "Official Stanford ColBERTv2 late interaction",
+    }
+
+    display_names = {
+        "bm25": "BM25",
+        "dense": "DENSE",
+        "colbert": "COLBERTV2",
     }
 
     for report in reports:
         method = report["method"]
         metrics = report["metrics"]
 
+        method_display = display_names.get(method, method.upper())
+
         line = (
-            f"| {method.upper()} "
+            f"| {method_display} "
             f"| {format_metric(metrics['recall_at_5'])} "
             f"| {format_metric(metrics['recall_at_10'])} "
             f"| {format_metric(metrics['mrr_at_10'])} "
@@ -269,7 +277,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--method",
-        choices=["bm25", "dense", "all"],
+        choices=["bm25", "dense", "colbert", "all"],
         default="all",
         help="Retrieval method to evaluate.",
     )
@@ -300,6 +308,27 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_DENSE_INDEX_DIR,
         help="Path to dense FAISS index directory.",
+    )
+
+    parser.add_argument(
+        "--colbert-root",
+        type=Path,
+        default=DEFAULT_COLBERT_ROOT,
+        help="Root directory for official ColBERT experiments.",
+    )
+
+    parser.add_argument(
+        "--colbert-experiment-name",
+        type=str,
+        default=DEFAULT_COLBERT_EXPERIMENT_NAME,
+        help="Official ColBERT experiment name.",
+    )
+
+    parser.add_argument(
+        "--colbert-index-name",
+        type=str,
+        default=DEFAULT_COLBERT_INDEX_NAME,
+        help="Official ColBERT index name.",
     )
 
     parser.add_argument(
@@ -343,6 +372,48 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def build_retriever(method: str, args: argparse.Namespace) -> Any:
+    """
+    Build the requested retriever.
+
+    Imports are intentionally kept inside this function so that
+    evaluating one retriever does not require installing every
+    dependency used by the other retrievers.
+    """
+    if method == "bm25":
+        from src.retrieval.bm25 import BM25Retriever
+
+        print()
+        print("Loading BM25 retriever...")
+
+        return BM25Retriever.from_jsonl(args.passages)
+
+    if method == "dense":
+        from src.retrieval.dense import DenseRetriever
+
+        print()
+        print("Loading dense retriever...")
+
+        return DenseRetriever(
+            index_dir=args.dense_index_dir,
+            device=args.device,
+        )
+
+    if method == "colbert":
+        from src.retrieval.colbert_official import OfficialColBERTRetriever
+
+        print()
+        print("Loading official Stanford ColBERTv2 retriever...")
+
+        return OfficialColBERTRetriever(
+            root=args.colbert_root,
+            experiment_name=args.colbert_experiment_name,
+            index_name=args.colbert_index_name,
+        )
+
+    raise ValueError(f"Unsupported method: {method}")
+
+
 def main() -> None:
     args = parse_args()
 
@@ -371,33 +442,15 @@ def main() -> None:
     print(f"Candidate passages k: {args.candidate_k}")
     print(f"Evaluation docs k:    {args.eval_k}")
 
-    methods_to_run: list[str]
-
     if args.method == "all":
-        methods_to_run = ["bm25", "dense"]
+        methods_to_run = ["bm25", "dense", "colbert"]
     else:
         methods_to_run = [args.method]
 
     reports: list[dict[str, Any]] = []
 
     for method in methods_to_run:
-        if method == "bm25":
-            print()
-            print("Loading BM25 retriever...")
-
-            retriever = BM25Retriever.from_jsonl(args.passages)
-
-        elif method == "dense":
-            print()
-            print("Loading dense retriever...")
-
-            retriever = DenseRetriever(
-                index_dir=args.dense_index_dir,
-                device=args.device,
-            )
-
-        else:
-            raise ValueError(f"Unsupported method: {method}")
+        retriever = build_retriever(method, args)
 
         report = evaluate_retriever(
             method_name=method,

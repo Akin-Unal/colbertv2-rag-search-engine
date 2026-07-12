@@ -1,23 +1,32 @@
+# Python environments
 .venv/
+.venv-colbert/
+.venv-colbert-linux/
+.env
+
+# Python cache
 __pycache__/
 *.pyc
 
-.env
-
+# Generated datasets
 data/raw/
 data/processed/
 
+# Dense indexes
 indexes/
-artifacts/
-models/
-
-.DS_Store
-.ipynb_checkpoints/
 
 # Evaluation outputs
 experiments/evaluation/*.json
 !experiments/evaluation/summary.md
 
-# ColBERT / RAGatouille generated indexes
+# Official ColBERT generated indexes
+colbert_experiments/
+experiments/scifact_colbertv2/
+
+# RAGatouille / alternative ColBERT outputs
 .ragatouille/
 colbert_indexes/
+
+# Model artifacts
+artifacts/
+models/

@@ -1,0 +1,6 @@
+colbert-ai
+tqdm
+pandas
+numpy
+ir-datasets
+python-dotenv
