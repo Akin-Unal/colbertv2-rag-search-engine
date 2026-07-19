@@ -1,74 +1,81 @@
 # ColBERTv2 RAG Search Engine
 
-A retrieval-first search and RAG project that compares **BM25**, **dense retrieval with FAISS**, and **Official Stanford ColBERTv2** on the **BEIR SciFact** scientific retrieval benchmark.
+A retrieval-first scientific search project that compares **BM25**, **dense retrieval with Sentence Transformers and FAISS**, and the **Official Stanford ColBERTv2 implementation** on the **BEIR SciFact** benchmark.
 
-The main goal of this project is not only to build a working semantic search system, but also to understand how different retrieval approaches behave on the same dataset:
-
-* **BM25** as a strong lexical baseline
-* **Dense retrieval** with Sentence Transformers and FAISS
-* **ColBERTv2** with late interaction using the official Stanford implementation
-* A shared evaluation pipeline using Recall, MRR, and nDCG metrics
-
-This project was built as a portfolio/research-engineering project to demonstrate practical experience with modern information retrieval and retrieval-augmented generation foundations.
+The project focuses on the retrieval layer of Retrieval-Augmented Generation systems. It provides an end-to-end pipeline for dataset preparation, passage indexing, retrieval, evaluation, and interactive result comparison through a Streamlit interface.
 
 ---
 
-## Project Overview
+## Overview
 
-Modern RAG systems depend heavily on retrieval quality. Before generating an answer with an LLM, the system needs to retrieve the most relevant evidence.
+The quality of a Retrieval-Augmented Generation system depends heavily on the documents retrieved before an answer is generated.
 
-This project focuses on the retrieval layer:
+This project explores three different information retrieval approaches:
 
-1. Load a scientific retrieval dataset.
-2. Split documents into passages.
-3. Build different retrieval systems.
-4. Compare their results under the same evaluation setup.
-5. Prepare the foundation for a source-grounded RAG system.
+* **BM25:** lexical keyword-based retrieval
+* **Dense retrieval:** single-vector semantic retrieval with Sentence Transformers and FAISS
+* **ColBERTv2:** token-level late interaction using the Official Stanford ColBERT implementation
 
-The current implementation supports:
+All retrieval methods are evaluated on the same queries and relevance judgments so their behavior can be compared under a shared evaluation setup.
 
-* SciFact data ingestion
-* Passage chunking
-* BM25 retrieval
-* Dense vector retrieval with FAISS
-* Official Stanford ColBERTv2 indexing and search
-* Shared evaluation over SciFact qrels
-* Markdown and JSON evaluation reports
+The current project implements the complete retrieval pipeline. LLM-based answer generation is planned as a future extension.
+
+---
+
+## Features
+
+* BEIR SciFact dataset ingestion
+* Scientific document and query preparation
+* Overlapping passage chunking
+* BM25 lexical retrieval
+* Dense semantic retrieval with Sentence Transformers
+* FAISS vector index creation and search
+* Official Stanford ColBERTv2 indexing
+* Official Stanford ColBERTv2 search
+* Shared evaluation pipeline
+* Recall@5 and Recall@10
+* MRR@10
+* nDCG@10
+* Passage-to-document deduplication
+* JSON and Markdown evaluation reports
+* Interactive Streamlit search interface
+* Multi-method result comparison
+* GPU-accelerated ColBERTv2 execution through WSL Ubuntu
 
 ---
 
 ## Dataset
 
-This project uses the **BEIR SciFact test split** through `ir_datasets`.
+The project uses the **BEIR SciFact test split** through `ir_datasets`.
 
-SciFact is a scientific fact verification and retrieval dataset. It is useful for this project because the queries are scientific claims and the relevant documents are scientific abstracts or evidence documents.
+SciFact contains scientific claims, scientific documents, and relevance judgments. It is suitable for comparing retrieval systems because relevant evidence often requires both exact scientific terminology and semantic understanding.
 
-Generated local dataset statistics:
+### Processed dataset statistics
 
-| File      | Count |
-| --------- | ----: |
-| Documents | 5,183 |
-| Queries   |   300 |
-| Qrels     |   339 |
-| Passages  | 8,854 |
+| Data type           | Count |
+| ------------------- | ----: |
+| Documents           | 5,183 |
+| Queries             |   300 |
+| Relevance judgments |   339 |
+| Generated passages  | 8,854 |
 
-The processed files are generated locally under:
+Processed files are generated locally under:
 
 ```text
 data/processed/
 ```
 
-These generated data files are not intended to be committed to Git.
+The generated dataset is excluded from Git because it can be reproduced with the ingestion scripts.
 
 ---
 
 ## Retrieval Methods
 
-### 1. BM25
+### BM25
 
-BM25 is used as the lexical baseline.
+BM25 is used as the lexical retrieval baseline.
 
-It performs keyword-based retrieval and is especially strong when the query terms overlap directly with the document terms.
+It ranks passages based on query-term overlap and term importance. BM25 remains especially effective when scientific claims contain terminology that also appears directly in relevant abstracts.
 
 Implementation:
 
@@ -86,11 +93,17 @@ python -m src.retrieval.bm25 \
 
 ---
 
-### 2. Dense Retrieval
+### Dense Retrieval
 
-Dense retrieval uses Sentence Transformers to encode passages and queries into vector embeddings.
+Dense retrieval represents each passage and query as a single semantic vector.
 
-The dense index is built with FAISS.
+The project uses:
+
+```text
+sentence-transformers/all-mpnet-base-v2
+```
+
+Passage embeddings are normalized and stored in a FAISS inner-product index.
 
 Implementation:
 
@@ -99,19 +112,13 @@ src/retrieval/build_dense_index.py
 src/retrieval/dense.py
 ```
 
-Default embedding model:
-
-```text
-sentence-transformers/all-mpnet-base-v2
-```
-
-Build dense index:
+Build the dense index:
 
 ```bash
 python -m src.retrieval.build_dense_index --batch-size 32
 ```
 
-Search:
+Search the dense index:
 
 ```bash
 python -m src.retrieval.dense \
@@ -119,13 +126,24 @@ python -m src.retrieval.dense \
   --top-k 5
 ```
 
+Generated dense index files:
+
+```text
+indexes/dense/
+├── index.faiss
+├── metadata.json
+└── passages.jsonl
+```
+
 ---
 
-### 3. Official Stanford ColBERTv2
+### Official Stanford ColBERTv2
 
-ColBERTv2 uses a late interaction retrieval architecture. Unlike standard dense retrieval, it does not compress the whole passage into a single vector. Instead, it keeps token-level representations and performs late interaction between query and passage tokens.
+ColBERTv2 uses a late-interaction retrieval architecture.
 
-This project uses the **official Stanford ColBERT implementation**.
+Instead of representing an entire passage with a single vector, ColBERT keeps contextualized token-level representations. During retrieval, query tokens interact with passage tokens through MaxSim scoring.
+
+This project uses the Official Stanford ColBERT implementation rather than a simplified reimplementation.
 
 Implementation:
 
@@ -135,24 +153,24 @@ src/retrieval/build_colbert_official_index.py
 src/retrieval/colbert_official.py
 ```
 
-Prepared ColBERT input files:
+Prepared ColBERT files:
 
 ```text
 data/processed/colbert/
 ├── collection.tsv
-├── queries.tsv
-├── qrels.tsv
+├── metadata.json
 ├── pid_mapping.jsonl
-└── metadata.json
+├── qrels.tsv
+└── queries.tsv
 ```
 
-Build ColBERT input files:
+Prepare official ColBERT input files:
 
 ```bash
 python -m src.retrieval.prepare_colbert_official
 ```
 
-Build official ColBERTv2 index:
+Build the ColBERTv2 index:
 
 ```bash
 python -m src.retrieval.build_colbert_official_index \
@@ -172,13 +190,7 @@ python -m src.retrieval.colbert_official \
   --root colbert_experiments
 ```
 
-Example ColBERT result for the query:
-
-```text
-Vitamin D deficiency increases the risk of multiple sclerosis
-```
-
-Top result:
+Example top result:
 
 ```text
 Rank:       1
@@ -190,32 +202,99 @@ Title:      [Vitamin D and latitude as environmental factors in multiple scleros
 
 ---
 
+## Streamlit Demo
+
+The project includes an interactive Streamlit interface for testing and comparing the retrieval systems.
+
+The interface supports:
+
+* Scientific query input
+* Selection of one or more retrieval methods
+* Top-k result configuration
+* Dense retrieval device selection
+* BM25 result visualization
+* Dense FAISS result visualization
+* ColBERTv2 result visualization
+* Separate result tabs for each selected method
+* Passage text inspection
+* Local index and dataset status checks
+
+Start the application:
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+Open the local URL displayed by Streamlit, normally:
+
+```text
+http://localhost:8501
+```
+
+### BM25 Retrieval
+
+BM25 provides the lexical keyword-based baseline.
+
+![BM25 Retrieval Results](docs/images/bm25-results.png)
+
+### Dense Retrieval
+
+Dense retrieval uses Sentence Transformers and FAISS to retrieve semantically related passages.
+
+![Dense Retrieval Results](docs/images/dense-results.png)
+
+### Official ColBERTv2 Retrieval
+
+ColBERTv2 performs token-level late interaction through the Official Stanford implementation.
+
+![ColBERTv2 Retrieval Results](docs/images/colbertv2-results.png)
+
+---
+
+## Evaluation
+
+All methods are evaluated with the same queries and SciFact relevance judgments.
+
+The retrievers initially return passage-level results. Before metric calculation, passages are converted into deduplicated document rankings using their document IDs.
+
+### Evaluation configuration
+
+| Setting                   |     Value |
+| ------------------------- | --------: |
+| Evaluated queries         |       300 |
+| Candidate passage depth   |        50 |
+| Evaluation document depth |        10 |
+| Passage chunk size        | 180 words |
+| Passage overlap           |  40 words |
+
+### Metrics
+
+* **Recall@5:** proportion of relevant documents retrieved within the first five results
+* **Recall@10:** proportion of relevant documents retrieved within the first ten results
+* **MRR@10:** ranking quality based on the first relevant result
+* **nDCG@10:** ranking quality while considering graded relevance and position
+
+---
+
 ## Evaluation Results
 
-The following metrics were generated by the local evaluation pipeline on the BEIR SciFact test split.
-
-Evaluation setup:
-
-* Candidate passage depth: 50
-* Evaluation document depth: 10
-* Queries evaluated: 300
-* Passage-level retrieval results were converted into deduplicated document rankings before scoring.
-
-| Method    | Recall@5 | Recall@10 | MRR@10 | nDCG@10 | Notes                                        |
-| --------- | -------: | --------: | -----: | ------: | -------------------------------------------- |
-| BM25      |   0.7112 |    0.7640 | 0.6162 |  0.6471 | Lexical keyword baseline                     |
-| DENSE     |   0.7127 |    0.7981 | 0.6062 |  0.6480 | Sentence Transformers + FAISS                |
-| COLBERTV2 |   0.6784 |    0.7597 | 0.5872 |  0.6224 | Official Stanford ColBERTv2 late interaction |
+| Method    | Recall@5 | Recall@10 | MRR@10 | nDCG@10 | Notes                              |
+| --------- | -------: | --------: | -----: | ------: | ---------------------------------- |
+| BM25      |   0.7112 |    0.7640 | 0.6162 |  0.6471 | Lexical keyword baseline           |
+| Dense     |   0.7127 |    0.7981 | 0.6062 |  0.6480 | Sentence Transformers and FAISS    |
+| ColBERTv2 |   0.6784 |    0.7597 | 0.5872 |  0.6224 | Official Stanford late interaction |
 
 ---
 
 ## Result Interpretation
 
-The results show that **BM25 remains a very strong baseline** on SciFact. This is expected because scientific claims often share important terminology with the relevant abstracts.
+BM25 remains a strong baseline on SciFact. Scientific claims frequently contain terminology that also appears directly in relevant scientific abstracts, making lexical retrieval effective.
 
-The dense retriever achieved the best Recall@10 and slightly better nDCG@10 in this configuration. This suggests that semantic vector retrieval helped recover more relevant documents deeper in the ranking.
+The dense retriever achieved the highest Recall@10 and slightly improved nDCG@10 in the current experiment. This indicates that semantic vector retrieval recovered more relevant documents deeper in the ranking.
 
-The official ColBERTv2 pipeline was successfully indexed and evaluated end-to-end. In this run, ColBERTv2 was configured with a lightweight local setup:
+The Official Stanford ColBERTv2 pipeline was successfully integrated, indexed, searched, and evaluated end to end.
+
+The ColBERTv2 index used a lightweight local configuration:
 
 ```text
 doc_maxlen = 128
@@ -223,16 +302,17 @@ nbits = 2
 kmeans_niters = 1
 ```
 
-This configuration was selected to keep the experiment reproducible on local hardware. The current ColBERT result should be interpreted as a successful official ColBERTv2 integration and baseline run, not as a fully optimized ColBERT configuration.
+These parameters were selected to make the experiment reproducible on local hardware. The current ColBERTv2 result should therefore be interpreted as a reproducible official implementation baseline rather than a fully optimized ColBERT configuration.
 
-Future ColBERT experiments could tune:
+Possible ColBERT improvements include:
 
-* `doc_maxlen`
-* `nbits`
-* `kmeans_niters`
-* candidate depth
-* reranking depth
-* dataset-specific preprocessing
+* Increasing `doc_maxlen`
+* Increasing `kmeans_niters`
+* Testing alternative compression settings
+* Increasing candidate retrieval depth
+* Applying ColBERT as a reranker
+* Dataset-specific passage preprocessing
+* Hyperparameter experimentation
 
 ---
 
@@ -252,36 +332,41 @@ colbertv2-rag-search-engine/
 │   ├── raw/
 │   └── processed/
 │       ├── documents.jsonl
-│       ├── queries.jsonl
-│       ├── qrels.jsonl
 │       ├── passages.jsonl
+│       ├── qrels.jsonl
+│       ├── queries.jsonl
 │       └── colbert/
 │           ├── collection.tsv
-│           ├── queries.tsv
-│           ├── qrels.tsv
+│           ├── metadata.json
 │           ├── pid_mapping.jsonl
-│           └── metadata.json
+│           ├── qrels.tsv
+│           └── queries.tsv
+├── docs/
+│   └── images/
+│       ├── bm25-results.png
+│       ├── dense-results.png
+│       └── colbertv2-results.png
 ├── experiments/
 │   └── evaluation/
 │       └── summary.md
 ├── indexes/
 │   └── dense/
 │       ├── index.faiss
-│       ├── passages.jsonl
-│       └── metadata.json
+│       ├── metadata.json
+│       └── passages.jsonl
 ├── notebooks/
 ├── src/
 │   ├── ingestion/
-│   │   ├── load_scifact.py
-│   │   └── chunk_docs.py
+│   │   ├── chunk_docs.py
+│   │   └── load_scifact.py
 │   ├── retrieval/
 │   │   ├── bm25.py
-│   │   ├── build_dense_index.py
-│   │   ├── dense.py
-│   │   ├── compare.py
-│   │   ├── prepare_colbert_official.py
 │   │   ├── build_colbert_official_index.py
-│   │   └── colbert_official.py
+│   │   ├── build_dense_index.py
+│   │   ├── colbert_official.py
+│   │   ├── compare.py
+│   │   ├── dense.py
+│   │   └── prepare_colbert_official.py
 │   ├── evaluation/
 │   │   ├── metrics.py
 │   │   └── run_eval.py
@@ -294,29 +379,27 @@ colbertv2-rag-search-engine/
 
 ---
 
-## Local Setup
+## Standard Environment Setup
 
-### 1. Clone the repository
+The standard environment supports:
 
-```bash
-git clone <your-repo-url>
-cd colbertv2-rag-search-engine
-```
+* Dataset ingestion
+* Passage creation
+* BM25 retrieval
+* Dense retrieval
+* FAISS indexing
+* Standard evaluation
 
----
+### Windows
 
-### 2. Create Python environment for BM25 and dense retrieval
-
-On Windows:
-
-```bash
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
 ```
 
-On Linux/macOS:
+### Linux or macOS
 
 ```bash
 python -m venv .venv
@@ -329,13 +412,13 @@ python -m pip install -r requirements.txt
 
 ## Data Preparation
 
-Load SciFact:
+Download and prepare the SciFact dataset:
 
 ```bash
 python -m src.ingestion.load_scifact
 ```
 
-Create passages:
+Create overlapping passages:
 
 ```bash
 python -m src.ingestion.chunk_docs
@@ -352,23 +435,28 @@ Passages created: 8854
 
 ---
 
-## Build Dense Index
+## Dense Index Creation
+
+Build the FAISS dense index:
 
 ```bash
 python -m src.retrieval.build_dense_index --batch-size 32
 ```
 
-Expected output includes:
+The current dense index contains:
 
 ```text
-Dense index created successfully.
 Indexed passages: 8,854
 Vector dimension: 768
 ```
 
+Index creation time depends on the selected device and local hardware.
+
 ---
 
-## Compare BM25 and Dense Retrieval
+## Retrieval Comparison
+
+Compare BM25 and dense retrieval for the same query:
 
 ```bash
 python -m src.retrieval.compare \
@@ -376,101 +464,123 @@ python -m src.retrieval.compare \
   --top-k 5
 ```
 
-This prints BM25 and dense retrieval results side by side and reports overlap between the retrieved documents.
+The comparison script displays:
+
+* BM25 results
+* Dense results
+* Common passages
+* Common documents
+* Unique document counts
+* Document-level Jaccard overlap
 
 ---
 
-## Evaluation
+## Official ColBERTv2 Environment
 
-Evaluate BM25:
+Official ColBERTv2 is run in a separate WSL Ubuntu Conda environment because its CUDA, NCCL, FAISS, and C++ extension requirements are better supported on Linux.
 
-```bash
-python -m src.evaluation.run_eval --method bm25
-```
+### Tested environment
 
-Evaluate dense retrieval:
+| Component        | Value                              |
+| ---------------- | ---------------------------------- |
+| Operating system | WSL Ubuntu                         |
+| Python           | 3.10.20                            |
+| GPU              | NVIDIA GeForce RTX 4070 Laptop GPU |
+| PyTorch          | 2.13.0+cu126                       |
+| CUDA available   | Yes                                |
+| NCCL available   | Yes                                |
+| Transformers     | 4.45.2                             |
+| NumPy            | 1.26.4                             |
+| SciPy            | 1.14.1                             |
+| FAISS            | faiss-cpu 1.8.0                    |
+| Compiler         | GCC/G++ 13                         |
 
-```bash
-python -m src.evaluation.run_eval --method dense
-```
-
-Evaluate ColBERTv2:
-
-```bash
-python -m src.evaluation.run_eval --method colbert
-```
-
-Evaluate all supported methods:
-
-```bash
-python -m src.evaluation.run_eval --method all
-```
-
-For quick debugging:
+### Create the environment
 
 ```bash
-python -m src.evaluation.run_eval --method colbert --max-queries 10
-```
+conda create -n colbert-official -c conda-forge \
+  python=3.10 \
+  numpy=1.26.4 \
+  scipy=1.14.1 \
+  pandas \
+  tqdm \
+  python-dotenv \
+  -y
 
-Evaluation reports are written to:
-
-```text
-experiments/evaluation/
-```
-
-Generated JSON reports are ignored by Git. The Markdown summary can be committed.
-
----
-
-## Official ColBERTv2 Environment Notes
-
-The official Stanford ColBERT implementation was installed in a separate WSL Ubuntu Conda environment.
-
-Environment used:
-
-| Component      | Value                              |
-| -------------- | ---------------------------------- |
-| OS             | WSL Ubuntu                         |
-| Python         | 3.10.20                            |
-| GPU            | NVIDIA GeForce RTX 4070 Laptop GPU |
-| PyTorch        | 2.13.0+cu126                       |
-| CUDA available | True                               |
-| NCCL available | True                               |
-| FAISS          | faiss-cpu 1.8.0                    |
-| Transformers   | 4.45.2                             |
-| ColBERT        | colbert-ai                         |
-
-Create environment:
-
-```bash
-conda create -n colbert-official python=3.10 -y
 conda activate colbert-official
 ```
 
-Install core dependencies:
+### Install PyTorch with CUDA
 
 ```bash
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-python -m pip install --no-deps faiss-cpu==1.8.0
-python -m pip install colbert-ai
-python -m pip uninstall -y transformers tokenizers
-python -m pip install transformers==4.45.2
-python -m pip install ir-datasets pandas tqdm python-dotenv
+
+python -m pip install torch torchvision torchaudio \
+  --index-url https://download.pytorch.org/whl/cu126
 ```
 
-For ColBERT CUDA extension compilation, the environment also required CUDA development packages and GCC 13.
+### Install FAISS
 
-Important environment exports used during ColBERT indexing:
+```bash
+python -m pip install --no-deps faiss-cpu==1.8.0
+```
+
+### Install ColBERT and supporting packages
+
+```bash
+python -m pip install colbert-ai
+
+python -m pip uninstall -y transformers tokenizers
+python -m pip install transformers==4.45.2
+
+python -m pip install \
+  ir-datasets \
+  rank-bm25 \
+  sentence-transformers \
+  streamlit
+```
+
+### Install build dependencies
+
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  gcc-13 \
+  g++-13 \
+  ninja-build
+```
+
+Install CUDA development packages compatible with the PyTorch CUDA build:
+
+```bash
+conda install -c nvidia \
+  "cuda-toolkit=12.6.*" \
+  "cuda-nvcc=12.6.*" \
+  "cuda-cudart-dev=12.6.*" \
+  "cuda-libraries-dev=12.6.*" \
+  "cuda-cccl=12.6.*" \
+  -y
+```
+
+---
+
+## ColBERT Environment Variables
+
+Official ColBERT compiles custom CUDA and C++ extensions during indexing and the first search.
+
+Set the following environment variables before building or loading the ColBERT index:
 
 ```bash
 export CUDA_HOME="$CONDA_PREFIX"
 export CUDA_PATH="$CONDA_PREFIX"
 
 export CPATH="$CONDA_PREFIX/targets/x86_64-linux/include/cccl:$CONDA_PREFIX/include:$CONDA_PREFIX/targets/x86_64-linux/include"
+
 export CPLUS_INCLUDE_PATH="$CONDA_PREFIX/targets/x86_64-linux/include/cccl:$CONDA_PREFIX/include:$CONDA_PREFIX/targets/x86_64-linux/include"
 
 export LIBRARY_PATH="$CONDA_PREFIX/lib:$CONDA_PREFIX/lib64:$CONDA_PREFIX/targets/x86_64-linux/lib"
+
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$CONDA_PREFIX/lib64:$CONDA_PREFIX/targets/x86_64-linux/lib"
 
 export CC=/usr/bin/gcc-13
@@ -481,13 +591,184 @@ export CUDACXX="$CONDA_PREFIX/bin/nvcc"
 export PYTHONUTF8=1
 ```
 
-These settings are needed because official ColBERT compiles custom CUDA/C++ extensions during indexing and search.
+Verify the environment:
+
+```bash
+python -c "
+import torch
+import faiss
+import colbert
+import transformers
+
+from colbert import Indexer, Searcher
+from colbert.infra import Run, RunConfig, ColBERTConfig
+
+print('Torch:', torch.__version__)
+print('CUDA:', torch.cuda.is_available())
+print('Device:', torch.cuda.get_device_name(0))
+print('NCCL:', torch.distributed.is_nccl_available())
+print('Transformers:', transformers.__version__)
+print('FAISS OK')
+print('ColBERT API OK')
+"
+```
 
 ---
 
-## Generated Files and Git Ignore Policy
+## ColBERT Index Creation
 
-The following outputs are generated locally and should not be committed:
+Prepare the official input files:
+
+```bash
+python -m src.retrieval.prepare_colbert_official
+```
+
+Create the index:
+
+```bash
+python -m src.retrieval.build_colbert_official_index \
+  --doc-maxlen 128 \
+  --kmeans-niters 1 \
+  --index-name scifact.dmax128.nbits2 \
+  --root colbert_experiments
+```
+
+Expected index location:
+
+```text
+colbert_experiments/
+└── scifact_colbertv2/
+    └── indexes/
+        └── scifact.dmax128.nbits2/
+```
+
+The first build compiles ColBERT CUDA extensions and may take longer than later executions.
+
+---
+
+## Running the Streamlit Application
+
+Activate the ColBERT environment:
+
+```bash
+conda activate colbert-official
+```
+
+Set the required CUDA and compiler environment variables, then run:
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+The interface can load all three retrieval methods from the same environment.
+
+---
+
+## Running Evaluations
+
+### BM25
+
+```bash
+python -m src.evaluation.run_eval --method bm25
+```
+
+### Dense retrieval
+
+```bash
+python -m src.evaluation.run_eval --method dense
+```
+
+### ColBERTv2
+
+```bash
+python -m src.evaluation.run_eval --method colbert
+```
+
+### All methods
+
+```bash
+python -m src.evaluation.run_eval --method all
+```
+
+### Quick debugging run
+
+```bash
+python -m src.evaluation.run_eval \
+  --method colbert \
+  --max-queries 10
+```
+
+Reports are generated under:
+
+```text
+experiments/evaluation/
+```
+
+The JSON reports contain per-query rankings and metrics. The Markdown summary contains a repository-friendly result table.
+
+---
+
+## Troubleshooting
+
+### Dense model JSON error
+
+A partially downloaded Hugging Face model cache may produce:
+
+```text
+JSONDecodeError: Expecting value
+```
+
+Remove the cached model and download it again:
+
+```bash
+rm -rf ~/.cache/huggingface/hub/models--sentence-transformers--all-mpnet-base-v2
+
+rm -rf ~/.cache/torch/sentence_transformers/sentence-transformers_all-mpnet-base-v2
+```
+
+Test the model:
+
+```bash
+python -c "
+from sentence_transformers import SentenceTransformer
+
+SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+print('Dense model OK')
+"
+```
+
+### ColBERT extension cache
+
+If a ColBERT CUDA extension build fails after changing CUDA or compiler settings:
+
+```bash
+rm -rf ~/.cache/torch_extensions
+```
+
+Delete the incomplete index before rebuilding:
+
+```bash
+rm -rf \
+  colbert_experiments/scifact_colbertv2/indexes/scifact.dmax128.nbits2
+```
+
+### Unsupported GCC version
+
+CUDA may reject GCC versions newer than the supported range.
+
+Use GCC 13:
+
+```bash
+export CC=/usr/bin/gcc-13
+export CXX=/usr/bin/g++-13
+export CUDAHOSTCXX=/usr/bin/g++-13
+```
+
+---
+
+## Generated Files
+
+The following directories contain locally generated data, embeddings, indexes, or reports:
 
 ```text
 data/processed/
@@ -496,73 +777,112 @@ colbert_experiments/
 experiments/evaluation/*.json
 ```
 
-Recommended `.gitignore` entries:
+These files are excluded from Git because they can be regenerated.
+
+Recommended `.gitignore` rules:
 
 ```gitignore
+# Python environments
 .venv/
-__pycache__/
-*.pyc
 .env
 
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated datasets
 data/raw/
 data/processed/
 
+# Generated indexes
 indexes/
 colbert_experiments/
 
+# Evaluation output
 experiments/evaluation/*.json
 !experiments/evaluation/summary.md
 
+# Local model artifacts
 artifacts/
 models/
 ```
 
 ---
 
-## Current Status
+## Current Project Status
 
-Implemented:
+### Completed
 
-* SciFact ingestion
-* Passage chunking
-* BM25 retrieval
-* Dense retrieval with Sentence Transformers and FAISS
-* Official Stanford ColBERTv2 indexing
-* Official Stanford ColBERTv2 search
-* Shared evaluation pipeline
-* Markdown and JSON evaluation outputs
+* [x] SciFact dataset ingestion
+* [x] Scientific document preparation
+* [x] Passage chunking
+* [x] BM25 retrieval
+* [x] Dense Sentence Transformer retrieval
+* [x] FAISS indexing
+* [x] Official Stanford ColBERTv2 preparation
+* [x] Official Stanford ColBERTv2 indexing
+* [x] Official Stanford ColBERTv2 search
+* [x] Shared retrieval evaluation
+* [x] Document-level result deduplication
+* [x] Streamlit interface
+* [x] Multi-method result comparison
+* [x] Retrieval screenshots and documentation
 
-In progress / future work:
+### Planned
 
-* Streamlit interface
-* FastAPI search endpoint
-* RAG answer generation from retrieved passages
-* ColBERT hyperparameter tuning
-* Additional datasets
-* Query/result visualization
-* Docker setup for easier reproducibility
+* [ ] FastAPI retrieval endpoints
+* [ ] Source-grounded RAG answer generation
+* [ ] LLM provider integration
+* [ ] Citation-aware generated answers
+* [ ] ColBERT reranking experiments
+* [ ] Additional BEIR datasets
+* [ ] Automated tests for retrieval pipelines
+* [ ] Docker-based local deployment
+* [ ] Public hosted demo
+
+---
+
+## Engineering Decisions
+
+### Retrieval-first development
+
+The project develops and evaluates retrieval before adding answer generation. This makes it possible to measure whether retrieved evidence is actually relevant before introducing an LLM.
+
+### Shared evaluation pipeline
+
+All methods are evaluated with the same queries, relevance judgments, candidate depth, and document-ranking conversion.
+
+### Separate ColBERT environment
+
+Official ColBERT requires a more specialized CUDA and compilation environment. It is therefore isolated from the standard project environment through WSL Ubuntu and Conda.
+
+### Generated indexes are not committed
+
+Dense and ColBERT indexes are reproducible but large. They are intentionally excluded from version control.
 
 ---
 
 ## Why This Project Matters
 
-This project demonstrates the core engineering behind retrieval-based AI systems.
+Many RAG demonstrations focus primarily on sending retrieved text to an LLM. However, retrieval quality determines whether the model receives useful, relevant, and trustworthy evidence.
 
-Instead of only calling an LLM API, this project focuses on the retrieval layer that determines what information the model sees. This is one of the most important parts of a practical RAG system.
+This project demonstrates practical experience with:
 
-The project includes:
-
-* Classical IR baseline
-* Neural dense retrieval
-* Late interaction retrieval
-* Evaluation with standard IR metrics
-* Reproducible local experiments
-* Real engineering troubleshooting around CUDA, FAISS, and ColBERT
+* Classical information retrieval
+* Semantic vector retrieval
+* Late-interaction neural retrieval
+* Scientific benchmark evaluation
+* FAISS indexing
+* CUDA-enabled PyTorch
+* Official ColBERT integration
+* Local GPU troubleshooting
+* Streamlit application development
+* Reproducible AI engineering workflows
 
 ---
 
 ## Author Note
 
-I built this project to strengthen my understanding of modern retrieval systems and to create a practical portfolio project around research-based AI engineering.
+I built this project to strengthen my understanding of modern information retrieval systems and retrieval-augmented generation foundations.
 
-The main learning goal was to implement and compare different retrieval approaches instead of treating RAG as a black box. This helped me understand the trade-offs between lexical retrieval, dense embeddings, and ColBERT-style late interaction retrieval.
+The main objective was to implement and compare retrieval approaches instead of treating RAG as a black box. Building BM25, dense retrieval, and Official ColBERTv2 under the same evaluation pipeline provided a clearer understanding of the trade-offs between lexical matching, semantic vector similarity, and token-level late interaction.
